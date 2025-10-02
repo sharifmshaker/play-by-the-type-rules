@@ -32,16 +32,14 @@ To generate programs using the context-free grammar (described Appendix A.1):
 ./scripts/generate/guided_grammar.sh
 ```
 
-[QA Flow](img/qa-flow.pdf)
+[QA Flow](img/qa-flow.png)
 
-[Map Flow](img/map-flow.pdf)
-
-[Type Ablations Barchart](img/type_ablations.pdf)
+[Type Ablations Barchart](img/type_ablations.png)
 
 
 ## Acknowledgements 
 
-The experiment code was adapted from the [linc](https://github.com/benlipkin/linc) codebase. 
+This experiment code was adapted from the [linc](https://github.com/benlipkin/linc) codebase. 
 
 
 ## Citation 

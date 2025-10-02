@@ -1,10 +1,10 @@
 # play-by-the-type-rules
 
-Experiment code for the paper [Play by the Type Rules: Inferring Constraints for LLM Functions in Declarative Programs](https://arxiv.org/pdf/2509.20208). Query language implementation can be found in the [blendsql](https://github.com/parkervg/blendsql) library. 
+Experiment code for the paper [Play by the Type Rules: Inferring Constraints for LLM Functions in Declarative Programs](https://arxiv.org/abs/2509.20208). Query language implementation can be found in the [blendsql](https://github.com/parkervg/blendsql) library. 
 
 ## Setup 
 
-The experiments were originally run with CUDA 12.4. All models except for Llama-3.3-70B-Instruct are run on 4 24GB A10 GPUs. Llama-3.3-70B-Instruct was hosted with [vLLM](https://github.com/vllm-project/vllm) on 4 80GB A100 GPUs.
+The experiments were originally run with CUDA 12.4 and python 3.10. All models except for Llama-3.3-70B-Instruct are run on 4 24GB A10 GPUs. Llama-3.3-70B-Instruct was hosted with [vLLM](https://github.com/vllm-project/vllm) on 4 80GB A100 GPUs.
 
 ```
 pip install -r requirements.txt

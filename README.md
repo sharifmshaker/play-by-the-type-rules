@@ -36,6 +36,7 @@ To generate programs using the context-free grammar (described Appendix A.1):
 
 ![Type Ablations Barchart](img/type_ablations.png)
 
+For the code used to perform the latency experiment described in Section 4.1, see https://github.com/parkervg/blendsql/tree/main/research. 
 
 ## Acknowledgements 
 

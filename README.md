@@ -32,9 +32,9 @@ To generate programs using the context-free grammar (described Appendix A.1):
 ./scripts/generate/guided_grammar.sh
 ```
 
-[QA Flow](img/qa-flow.png)
+![QA Flow](img/qa-flow.png)
 
-[Type Ablations Barchart](img/type_ablations.png)
+![Type Ablations Barchart](img/type_ablations.png)
 
 
 ## Acknowledgements 

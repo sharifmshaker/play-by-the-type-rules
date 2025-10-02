@@ -1,0 +1,13 @@
+blendsql==0.0.48
+nltk
+recognizers-text-suite
+emoji==1.7
+tensorboard
+evaluate
+pandarallel
+pysbd
+faiss-gpu
+datasets==3.6.0
+triton
+lark
+seaborn

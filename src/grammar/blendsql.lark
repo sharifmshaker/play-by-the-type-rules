@@ -1,0 +1,218 @@
+start: set_expr ";"? -> final
+
+select_query: select [ "ORDER"i "BY"i (order_by_expr ",")*  order_by_expr] [ "LIMIT"i (limit_count [ "OFFSET"i skip_rows ] | limit_count "," skip_rows) ]
+
+// `SELECT`
+select: [cte_expr] "SELECT"i [SELECT_CONSTRAINT] [(select_expr ",")*] select_expr ["FROM"i [(from_expr ",")*] from_expr] [ "WHERE"i where_expr ] [ "GROUP"i "BY"i [(groupby_expr ",")*] groupby_expr ] [ "HAVING"i having_expr] [ "WINDOW"i window_expr ]
+SELECT_CONSTRAINT: "ALL"i | "DISTINCT"i
+cte_expr: "WITH"i ["RECURSIVE"i] name "AS"i LPAREN set_expr RPAREN ("," name "AS"i LPAREN set_expr RPAREN)*
+
+set_expr: select_query
+        | column_ref
+        | select "UNION"i [SELECT_CONSTRAINT] select -> union
+        | select "INTERSECT"i [SELECT_CONSTRAINT] select -> intersect
+        | select "EXCEPT"i [SELECT_CONSTRAINT] select -> except
+
+OP: "*" | "/" | "||" | "+" | "-"
+expression: column_ref | literal
+expression_product: expression | expression_math OP expression_math
+
+expression_math: expression_product
+               | expression_math "+" expression_math -> expression_add
+               | expression_math "-" expression_math -> expression_sub
+               | "CASE"i (when_then)+ "ELSE"i expression_math "END"i -> case_expression
+               | "CAST"i LPAREN expression_math "AS"i TYPENAME RPAREN -> as_type
+               | "CAST"i LPAREN literal "AS"i TYPENAME RPAREN -> literal_cast
+               | AGGREGATE_FUNCTIONS LPAREN expression_math RPAREN [window_form] -> sql_aggregation
+               | SCALAR_FUNCTIONS LPAREN [(expression_math ",")*] expression_math RPAREN -> sql_scalar
+               | blendsql_aggregate_expr
+               | blendsql_scalar_expr
+               | "RANK"i LPAREN RPAREN window_form -> rank_expression
+               | "DENSE_RANK"i LPAREN RPAREN window_form -> dense_rank_expression
+               | "|" "|" expression_math
+               | subquery
+
+where_expr: bool_expression
+
+select_expr: expression_math [ [ "AS"i ] alias ] -> select_expression
+
+?from_expr: from_item -> from_expression
+from_item: table [ [ "AS"i ] alias ] -> table
+            | join -> join
+            | subquery
+            | "VALUES"i blendsql_aggregate_expr
+
+order_by_expr: order -> order_by_expression
+order: expression_math ["ASC"i] -> order_asc
+            | expression_math "DESC"i -> order_desc
+
+having_expr: bool_expression
+
+groupby_expr: expression -> group_by
+
+window_expr: [window_expr ","] name "AS"i ( window_definition )
+
+// TODO: can a subquery be a whole new `start` node?
+subquery: ( LPAREN set_expr RPAREN ) [ [ "AS"i ] alias ]
+
+// [BEGIN Join]
+JOIN_TYPE: "INNER" | "LEFT" ["OUTER"] | "RIGHT" ["OUTER"] | "FULL" ["OUTER"] | "CROSS"
+join: from_item [JOIN_TYPE] "JOIN"i (from_item [ "ON"i bool_expression ]|blendsql_join_expr) -> join_expression
+// [END Join]
+
+// [BEGIN BlendSQL Functions]
+$blendsql_aggregate_functions
+$blendsql_join_functions
+$blendsql_scalar_functions
+BLENDSQL_FUNCTION_BEGIN: "{{"
+BLENDSQL_FUNCTION_END: "}}"
+QUANTIFIER_RE: ("*"|"+"|/\{\d(,\d)?\}/)
+QUANTIFIER: (SINGLE_QUOTE QUANTIFIER_RE SINGLE_QUOTE|DOUBLE_QUOTE QUANTIFIER_RE DOUBLE_QUOTE)
+RETURN_TYPE_SCALARS: ("str" | "int" | "float")
+RETURN_TYPES_BASE: ["List["] RETURN_TYPE_SCALARS ["]"]
+RETURN_TYPES: (SINGLE_QUOTE RETURN_TYPES_BASE SINGLE_QUOTE | DOUBLE_QUOTE RETURN_TYPES_BASE DOUBLE_QUOTE)
+
+tuple: LPAREN [literal ","]* literal RPAREN
+value_array: (tuple | LPAREN start RPAREN | column_ref | QUOTED_STRING)
+
+question_arg: ["question" "="] QUOTED_STRING
+context_arg: ["context" "="] value_array
+values_arg: ["values" "="] column_ref
+
+options_arg: "options" "=" value_array
+return_type_arg: "return_type" "=" RETURN_TYPES
+regex_arg: "regex" "=" QUOTED_STRING
+quantifier_arg: "quantifier" "=" QUANTIFIER
+left_on_arg: ["left_on" "="] column_ref
+right_on_arg: ["right_on" "="] column_ref
+join_criteria_arg: ["join_criteria" "="] QUOTED_STRING
+
+blendsql_required_aggregate_args: question_arg ("," context_arg)*
+blendsql_optional_aggregate_args: (options_arg|return_type_arg|regex_arg|quantifier_arg)
+blendsql_aggregate_expr: BLENDSQL_FUNCTION_BEGIN blendsql_aggregate_functions LPAREN blendsql_required_aggregate_args ("," blendsql_optional_aggregate_args)* RPAREN BLENDSQL_FUNCTION_END
+
+blendsql_required_scalar_args: question_arg "," values_arg
+blendsql_optional_scalar_args: (options_arg|return_type_arg|regex_arg|quantifier_arg)
+blendsql_scalar_expr: BLENDSQL_FUNCTION_BEGIN blendsql_scalar_functions LPAREN blendsql_required_scalar_args  ("," blendsql_optional_scalar_args)* RPAREN BLENDSQL_FUNCTION_END
+
+blendsql_required_join_args: left_on_arg "," right_on_arg
+blendsql_optional_join_args: (join_criteria_arg)
+blendsql_join_expr: BLENDSQL_FUNCTION_BEGIN blendsql_join_functions LPAREN blendsql_required_join_args ("," blendsql_optional_join_args)* RPAREN BLENDSQL_FUNCTION_END
+// [END BlendSQL Functions]
+
+window_form: "OVER"i LPAREN ["PARTITION"i "BY"i (expression_math ",")* expression_math] ["ORDER"i "BY"i (order ",")* order [ row_range_clause ] ] RPAREN
+
+row_range_clause: ( ROWS | RANGE ) frame_extent
+frame_extent: frame_between | frame_preceding
+frame_between: "BETWEEN"i frame_bound "AND"i frame_bound
+frame_bound: frame_preceding | frame_following | "CURRENT"i "ROW"i
+frame_preceding: UNBOUNDED PRECEDING | integer_ PRECEDING
+frame_following: UNBOUNDED FOLLOWING | integer_ FOLLOWING
+RANGE: "RANGE"i
+ROWS: "ROWS"i
+UNBOUNDED: "UNBOUNDED"i
+PRECEDING: "PRECEDING"i
+FOLLOWING: "FOLLOWING"i
+
+when_then: "WHEN"i bool_expression "THEN"i expression_math
+
+$column_ref_grammar_str
+
+TYPENAME:  "object"i
+         | "varchar"i
+         | "integer"i
+         | "int16"i
+         | "smallint"i
+         | "int32"i
+         | "int64"i
+         | "int"i
+         | "bigint"i
+         | "float16"i
+         | "float32"i
+         | "float64"i
+         | "float"i
+         | "bool"i
+         | "datetime64"i
+         | "timestamp"i
+         | "time"i
+         | "date"i
+         | "category"i
+         | "string"i
+         | "real"i
+
+// https://www.sqlite.org/lang_expr.html#*funcinexpr
+AGGREGATE_FUNCTIONS: ("sum"i | "avg"i | "min"i | "max"i | "count"i ["distinct"i [LPAREN]] )
+SCALAR_FUNCTIONS: ("trim"i | "coalesce"i | "abs"i | "replace"i) | "substr"i | "instr"i | "length"i
+
+alias: name -> alias_string
+limit_count: integer_ -> limit_count
+skip_rows: integer_
+bool_expression: bool_parentheses
+                 | bool_expression "AND"i bool_parentheses -> bool_and
+                 | bool_expression "OR"i bool_parentheses -> bool_or
+bool_parentheses: comparison_type
+                 | "(" bool_expression "AND"i comparison_type ")" -> bool_and
+                 | "(" bool_expression "OR"i comparison_type ")" -> bool_or
+comparison_type: equals | not_equals | greater_than | less_than | greater_than_or_equal | like_expr
+| less_than_or_equal | between | in_expr | is_null | is_not_null | empty_expr
+equals: expression_math "=" expression_math
+is_null: expression_math "is"i "null"i
+is_not_null: expression_math "is"i "not"i "null"i
+not_equals: expression_math ("<>" | "!=") expression_math
+greater_than: expression_math ">" expression_math
+less_than: expression_math "<" expression_math
+greater_than_or_equal: expression_math ">=" expression_math
+less_than_or_equal: expression_math "<=" expression_math
+between: expression_math "BETWEEN"i expression_math "AND"i expression_math
+in_expr: expression_math ["NOT"i] "IN"i (tuple | subquery)
+like_expr: expression_math ["NOT"i]  ("LIKE"i | "GLOB"i | "REGEXP"i | "MATCH"i) expression_math
+empty_expr: expression_math
+
+string: SINGLE_QUOTED_STRING
+       | ESCAPED_STRING
+?literal: boolean -> bool
+       | number_expr -> number
+       | string
+       | timestamp_expression -> timestamp_expression
+boolean: "true"i -> true
+       | "false"i -> false
+?number_expr: product
+
+?product: NUMBER
+
+integer_: /[1-9][0-9]*/
+window_definition:
+timestamp_expression: "NOW"i LPAREN RPAREN -> datetime_now
+                    | "TODAY"i LPAREN RPAREN -> date_today
+                    | "TIMESTAMP"i LPAREN "'" date "'" "," "'" time "'" RPAREN -> custom_timestamp
+
+// Causes collision with subquery
+name: CNAME | /`([^`]|\s)+`|``/ | DOUBLE_QUOTED_STRING | "*"
+time: HOURS ":" MINUTES ":" SECONDS
+date: YEAR "-" MONTH "-" DAY
+
+YEAR: /[0-9]{4}/
+MONTH: /[0-9]{2}/
+DAY: /[0-9]{2}/
+HOURS: /[0-9]{2}/
+MINUTES: /[0-9]{2}/
+SECONDS: /[0-9]{2}/
+SINGLE_QUOTE: "'"
+DOUBLE_QUOTE: "\""
+LPAREN: "("
+RPAREN: ")"
+DOUBLE_QUOTED_STRING: /"([^"]|"")*"/
+SINGLE_QUOTED_STRING: /'([^']|'')*'/
+
+QUOTED_STRING: (SINGLE_QUOTED_STRING|DOUBLE_QUOTED_STRING)
+
+COMMENT: /--[^\n]*/
+BLOCK_COMMENT: /\/\*(.|\n)*?\*\//
+
+%import common.ESCAPED_STRING
+%import common.CNAME
+%import common.NUMBER
+%import common.WS
+%ignore WS
+%ignore COMMENT
+%ignore BLOCK_COMMENT

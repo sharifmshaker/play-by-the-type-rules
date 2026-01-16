@@ -1,0 +1,1 @@
+select reviewId from Reviews where NLfilter(reviewText, 'The movie review is clearly positive') limit 5

@@ -85,7 +85,7 @@ QUERIES_DIR = BASE_DIR / "queries"
 THALAMUS_CONFIG_PATH = "../thalamus_db_model_config.json"
 
 # Query Filtering
-SKIP_QUERIES = {"Q7"}
+SKIP_QUERIES = {}
 ONLY_USE = {}
 
 # Server Configuration

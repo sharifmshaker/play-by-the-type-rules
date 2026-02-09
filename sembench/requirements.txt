@@ -5,4 +5,4 @@ cdlib
 thalamusdb==0.1.15
 lotus-ai==1.1.4
 palimpzest==0.8.2
-blendsql==0.1.0
+blendsql==0.1.10

@@ -8,57 +8,8 @@ from datetime import datetime
 BASE_DIR = Path(__file__).resolve().parent
 USE_DATA_SIZE = 2000
 DUCKDB_SEED = 0.5
+BASE_URL = "http://localhost:8000/v1"
 
-
-@dataclass
-class ModelConfig:
-    model_name_or_path: str
-    filename: str
-    chat_format: str
-
-
-MODEL_CONFIGS = {
-    "gemma_4b": ModelConfig(
-        model_name_or_path="unsloth/gemma-3-4b-it-GGUF",
-        filename="gemma-3-4b-it-Q4_K_M.gguf",
-        chat_format="gemma",
-    ),
-    "gemma_12b": ModelConfig(
-        model_name_or_path="unsloth/gemma-3-12b-it-GGUF",
-        filename="gemma-3-12b-it-Q4_K_M.gguf",
-        chat_format="gemma",
-    ),
-    "qwen_3b": ModelConfig(
-        model_name_or_path="Qwen/Qwen2.5-3B-Instruct-GGUF",
-        filename="qwen2.5-3b-instruct-q4_k_m.gguf",
-        chat_format="qwen",
-    ),
-    "qwen_7b": ModelConfig(
-        model_name_or_path="Qwen/Qwen2.5-7B-Instruct-GGUF",
-        filename=[
-            "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
-            "qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf",
-        ],
-        chat_format="qwen",
-    ),
-    "qwen_14b": ModelConfig(
-        model_name_or_path="Qwen/Qwen2.5-14B-Instruct-GGUF",
-        filename=[
-            "qwen2.5-14b-instruct-q4_k_m-00001-of-00003.gguf",
-            "qwen2.5-14b-instruct-q4_k_m-00002-of-00003.gguf",
-            "qwen2.5-14b-instruct-q4_k_m-00003-of-00003.gguf",
-        ],
-        chat_format="qwen",
-    ),
-}
-
-OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_API_ENDPOINT = f"{OLLAMA_BASE_URL}/api/tags"
-
-current_date = datetime.now().strftime("%Y-%m-%d")
-BASE_OUTPUT_DIR = Path(__file__).resolve().parent.parent / "results" / current_date
-
-# Model Parameters
 MODEL_PARAMS = {
     "temperature": 0.0,
     "repeat_penalty": 1.0,
@@ -75,8 +26,32 @@ MODEL_PARAMS = {
     "n_batch": 2048,
 }
 
+
+@dataclass
+class ModelConfig:
+    model_name_or_path: str
+
+
+MODEL_CONFIGS = {
+    "gemma_12b": ModelConfig(
+        model_name_or_path="RedHatAI/gemma-3-12b-it-quantized.w4a16",
+    ),
+    "gemma_4b": ModelConfig(
+        model_name_or_path="RedHatAI/gemma-3-4b-it-quantized.w4a16",
+    ),
+    "qwen_4b": ModelConfig(
+        model_name_or_path="Qwen/Qwen3-4B-Instruct-2507-FP8",
+    ),
+    "qwen_7b": ModelConfig(
+        model_name_or_path="RedHatAI/Qwen2.5-VL-7B-Instruct-quantized.w4a16",
+    ),
+}
+
+current_date = datetime.now().strftime("%Y-%m-%d")
+BASE_OUTPUT_DIR = Path(__file__).resolve().parent.parent / "results" / current_date
+
 # System params
-SYSTEM_PARAMS = {"batch_size": 1}
+N_PARALLEL = 32
 
 # Paths
 MOVIE_FILES_DIR = BASE_DIR / "data"
@@ -85,7 +60,7 @@ QUERIES_DIR = BASE_DIR / "queries"
 THALAMUS_CONFIG_PATH = "../thalamus_db_model_config.json"
 
 # Query Filtering
-SKIP_QUERIES = {}
+SKIP_QUERIES = {"Q9", "Q10", "Q11", "Q12"}
 ONLY_USE = {}
 
 # Server Configuration

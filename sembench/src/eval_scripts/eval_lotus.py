@@ -48,7 +48,7 @@ def run_lotus_eval(model_config: ModelConfig):
         lotus.settings.configure(
             lm=LM(
                 model=f"hosted_vllm/{model_config.model_name_or_path}",
-                api_base=BASE_URL,
+                api_base=model_config.base_url,
                 api_key="N.A.",
                 # https://docs.litellm.ai/docs/providers/openai_compatible#advanced---disable-system-messages
                 supports_system_message=False,  # lotus uses system prompts. Gemma3 doesn't listen to those.

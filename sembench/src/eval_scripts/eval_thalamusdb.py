@@ -190,7 +190,7 @@ def run_thalamusdb_eval(model_config: ModelConfig):
                             "kwargs": {
                                 "filter": {
                                     "model": tdb_model_name,
-                                    "api_base": BASE_URL,
+                                    "api_base": model_config.base_url,
                                     "api_key": "N.A.",
                                     "temperature": MODEL_PARAMS["temperature"],
                                     "max_tokens": 1,
@@ -198,7 +198,7 @@ def run_thalamusdb_eval(model_config: ModelConfig):
                                 },
                                 "join": {
                                     "model": tdb_model_name,
-                                    "api_base": BASE_URL,
+                                    "api_base": model_config.base_url,
                                     "api_key": "N.A.",
                                     "temperature": MODEL_PARAMS["temperature"],
                                     "stop": ["."],

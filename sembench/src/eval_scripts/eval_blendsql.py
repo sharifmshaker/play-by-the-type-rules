@@ -36,7 +36,7 @@ def run_blendsql_eval(model_config: ModelConfig):
                 DuckDB(con),
                 model=VLLM(
                     model_name_or_path=model_config.model_name_or_path,
-                    base_url=BASE_URL,
+                    base_url=model_config.base_url,
                 ),
                 verbose=False,
             )

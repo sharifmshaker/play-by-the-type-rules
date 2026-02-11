@@ -2,13 +2,13 @@
 Configuration settings for model evaluation framework.
 """
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 BASE_DIR = Path(__file__).resolve().parent
 USE_DATA_SIZE = 2000
 DUCKDB_SEED = 0.5
-BASE_URL = "http://localhost:8000/v1"
+REMOTE_BASE_URL = ""
 
 MODEL_PARAMS = {
     "temperature": 0.0,
@@ -29,7 +29,8 @@ MODEL_PARAMS = {
 
 @dataclass
 class ModelConfig:
-    model_name_or_path: str
+    model_name_or_path: str = field()
+    base_url: str = field(default="http://localhost:8000/v1")
 
 
 MODEL_CONFIGS = {
@@ -38,6 +39,10 @@ MODEL_CONFIGS = {
     ),
     "gemma_4b": ModelConfig(
         model_name_or_path="RedHatAI/gemma-3-4b-it-quantized.w4a16",
+    ),
+    "gemma_27b": ModelConfig(
+        model_name_or_path="google_gemma-3-27b-it", 
+        base_url=VLLM_BASE_URL
     ),
     "qwen_4b": ModelConfig(
         model_name_or_path="Qwen/Qwen3-4B-Instruct-2507-FP8",
@@ -56,17 +61,9 @@ N_PARALLEL = 32
 # Paths
 MOVIE_FILES_DIR = BASE_DIR / "data"
 DUCKDB_DB_PATH = MOVIE_FILES_DIR / f"movie_database_{USE_DATA_SIZE}.duckdb"
-QUERIES_DIR = BASE_DIR / "queries"
+QUERIES_DIR = BASE_DIR / "queries/movie-verified"
 THALAMUS_CONFIG_PATH = "../thalamus_db_model_config.json"
 
 # Query Filtering
 SKIP_QUERIES = {"Q9", "Q10", "Q11", "Q12"}
 ONLY_USE = {}
-
-# Server Configuration
-OLLAMA_SERVER_STARTUP_TIMEOUT = 10  # seconds
-OLLAMA_SERVER_SHUTDOWN_DELAY = 2  # seconds
-OLLAMA_WARMUP_TIMEOUT = 30  # seconds
-
-# Flock Configuration
-FLOCK_VERSION = "7f1c36a"

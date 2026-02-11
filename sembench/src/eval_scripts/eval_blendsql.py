@@ -14,6 +14,7 @@ def run_blendsql_eval(model_config: ModelConfig):
 
     from ..config import DUCKDB_DB_PATH, N_PARALLEL, BASE_URL, DUCKDB_SEED, MODEL_PARAMS
     from ..database_utils import iter_queries
+    from ..gpu_util_tracker import track_gpu
 
     config.set_deterministic(True)
     config.set_async_limit(N_PARALLEL)
@@ -60,7 +61,8 @@ def run_blendsql_eval(model_config: ModelConfig):
             for query_file, query_name in iter_queries("blendsql"):
                 query = open(query_file).read()
                 start = time.time()
-                smoothie = bsql.execute(query)
+                with track_gpu() as gpu_data:
+                    smoothie = bsql.execute(query)
                 result = (
                     smoothie.df
                 )  # Count this, since conversion to pd from pl takes a small bit of latency
@@ -70,6 +72,7 @@ def run_blendsql_eval(model_config: ModelConfig):
                         "system_name": "blendsql",
                         "query_name": query_name,
                         "latency": latency,
+                        "gpu_usage": gpu_data.copy(),
                         "prediction": result.to_json(orient="split", index=False),
                         "num_generation_calls": smoothie.meta.num_generation_calls,
                         "output_tokens": smoothie.meta.completion_tokens,

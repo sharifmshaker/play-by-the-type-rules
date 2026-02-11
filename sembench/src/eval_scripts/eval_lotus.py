@@ -21,16 +21,15 @@ def run_lotus_eval(model_config: ModelConfig):
 
     import time
     import duckdb
-    import importlib
+    import importlib.util
 
     import lotus
     from lotus.models import LM
     from blendsql.common.logger import Color, logger
 
     from ..config import DUCKDB_DB_PATH, BASE_URL, DUCKDB_SEED
-
     from ..database_utils import iter_queries
-    import importlib.util
+    from ..gpu_util_tracker import track_gpu
 
     def load_module(filename):
         """Load a Python file as a module and execute its run() function."""
@@ -64,13 +63,15 @@ def run_lotus_eval(model_config: ModelConfig):
             lotus.settings.lm.reset_stats()
             func = load_module(query_file)
             start = time.time()
-            result = func.run(con)
+            with track_gpu() as gpu_data:
+                result = func.run(con)
             latency = time.time() - start
             results.append(
                 {
                     "system_name": "lotus",
                     "query_name": query_name,
                     "latency": latency,
+                    "gpu_usage": gpu_data.copy(),
                     "prediction": result.to_json(orient="split", index=False),
                     "num_generation_calls": "N.A.",
                     "output_tokens": lotus.settings.lm.stats.physical_usage.completion_tokens,

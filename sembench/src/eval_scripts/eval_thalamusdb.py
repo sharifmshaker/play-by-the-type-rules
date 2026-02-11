@@ -151,6 +151,7 @@ def run_thalamusdb_eval(model_config: ModelConfig):
         THALAMUS_CONFIG_PATH,
     )
     from ..database_utils import iter_queries
+    from ..gpu_util_tracker import track_gpu
     import litellm
 
     litellm.drop_params = True
@@ -227,7 +228,8 @@ def run_thalamusdb_eval(model_config: ModelConfig):
             start = time.time()
             query = Query(db, query)
             with suppress_stdout():
-                result, counters = engine.run(query, constraints)
+                with track_gpu() as gpu_data:
+                    result, counters = engine.run(query, constraints)
             latency = time.time() - start
             model_counter: LLMCounters = counters.model2counters[tdb_model_name]
             results.append(
@@ -235,6 +237,7 @@ def run_thalamusdb_eval(model_config: ModelConfig):
                     "system_name": "thalamusdb",
                     "query_name": query_name,
                     "latency": latency,
+                    "gpu_usage": gpu_data.copy(),
                     "prediction": result.to_json(orient="split", index=False),
                     "num_generation_calls": model_counter.LLM_calls,
                     "output_tokens": model_counter.output_tokens,

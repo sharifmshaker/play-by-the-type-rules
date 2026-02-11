@@ -42,7 +42,6 @@ MODEL_CONFIGS = {
     ),
     "gemma_27b": ModelConfig(
         model_name_or_path="google_gemma-3-27b-it", 
-        base_url=VLLM_BASE_URL
     ),
     "qwen_4b": ModelConfig(
         model_name_or_path="Qwen/Qwen3-4B-Instruct-2507-FP8",

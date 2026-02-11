@@ -27,7 +27,7 @@ def run_lotus_eval(model_config: ModelConfig):
     from lotus.models import LM
     from blendsql.common.logger import Color, logger
 
-    from ..config import DUCKDB_DB_PATH, BASE_URL, DUCKDB_SEED
+    from ..config import DUCKDB_DB_PATH, DUCKDB_SEED
     from ..database_utils import iter_queries
     from ..gpu_util_tracker import track_gpu
 

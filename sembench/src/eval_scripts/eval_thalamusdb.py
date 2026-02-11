@@ -146,7 +146,6 @@ def run_thalamusdb_eval(model_config: ModelConfig):
     from ..config import (
         DUCKDB_DB_PATH,
         N_PARALLEL,
-        BASE_URL,
         DUCKDB_SEED,
         THALAMUS_CONFIG_PATH,
     )

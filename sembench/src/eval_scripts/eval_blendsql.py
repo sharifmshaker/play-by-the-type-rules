@@ -12,7 +12,7 @@ def run_blendsql_eval(model_config: ModelConfig):
     from blendsql.common.logger import Color, logger
     from blendsql import config
 
-    from ..config import DUCKDB_DB_PATH, N_PARALLEL, BASE_URL, DUCKDB_SEED, MODEL_PARAMS
+    from ..config import DUCKDB_DB_PATH, N_PARALLEL, DUCKDB_SEED, MODEL_PARAMS
     from ..database_utils import iter_queries
     from ..gpu_util_tracker import track_gpu
 

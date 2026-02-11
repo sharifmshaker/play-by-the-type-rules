@@ -8,7 +8,6 @@ from datetime import datetime
 BASE_DIR = Path(__file__).resolve().parent
 USE_DATA_SIZE = 2000
 DUCKDB_SEED = 0.5
-REMOTE_BASE_URL = ""
 
 MODEL_PARAMS = {
     "temperature": 0.0,
@@ -42,6 +41,7 @@ MODEL_CONFIGS = {
     ),
     "gemma_27b": ModelConfig(
         model_name_or_path="google_gemma-3-27b-it", 
+        base_url="http://nzb138-vllm14-gemma-3-27b.llm-customization.svc.cluster.local:8000/v1"
     ),
     "qwen_4b": ModelConfig(
         model_name_or_path="Qwen/Qwen3-4B-Instruct-2507-FP8",

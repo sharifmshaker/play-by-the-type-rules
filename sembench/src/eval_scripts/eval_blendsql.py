@@ -1,3 +1,12 @@
+import subprocess
+BLENDSQL_VERSION = "0.1.12"
+
+print(f"Ensuring blendsql=={BLENDSQL_VERSION} is installed...")
+subprocess.check_call([
+    sys.executable, "-m", "uv", "pip", "install", 
+    f"blendsql=={BLENDSQL_VERSION}"
+])
+
 from ..config import ModelConfig
 
 

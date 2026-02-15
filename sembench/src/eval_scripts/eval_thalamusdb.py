@@ -1,12 +1,3 @@
-import subprocess
-TDB_VERSION = "0.1.15"
-
-print(f"Ensuring thalamusdb=={TDB_VERSION} is installed...")
-subprocess.check_call([
-    sys.executable, "-m", "uv", "pip", "install", 
-    f"thalamusdb=={TDB_VERSION}"
-])
-
 import tdb.operators.semantic_filter
 import litellm
 from litellm import completion

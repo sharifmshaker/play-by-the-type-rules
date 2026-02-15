@@ -1,14 +1,4 @@
-import subprocess
-LOTUS_VERSION = "1.1.4"
-
-print(f"Ensuring lotus-ai=={LOTUS_VERSION} is installed...")
-subprocess.check_call([
-    sys.executable, "-m", "uv", "pip", "install", 
-    f"lotus-ai=={LOTUS_VERSION}"
-])
-
 import pandas as pd
-
 from ..config import ModelConfig
 
 

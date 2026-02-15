@@ -83,6 +83,8 @@ def iter_queries(system_name: str) -> Generator:
     )
 
     for query_file in sorted_query_files:
+        if query_file.is_dir():
+            continue
         query_name = query_file.stem
         if query_name in SKIP_QUERIES:
             continue

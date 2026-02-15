@@ -1,14 +1,4 @@
-import subprocess
-BLENDSQL_VERSION = "0.1.12"
-
-print(f"Ensuring blendsql=={BLENDSQL_VERSION} is installed...")
-subprocess.check_call([
-    sys.executable, "-m", "uv", "pip", "install", 
-    f"blendsql=={BLENDSQL_VERSION}"
-])
-
 from ..config import ModelConfig
-
 
 def run_blendsql_eval(model_config: ModelConfig):
     import pandas as pd
@@ -49,21 +39,7 @@ def run_blendsql_eval(model_config: ModelConfig):
                 ),
                 verbose=False,
             )
-
-            # Warmup
-            _ = bsql.execute(
-                """
-                SELECT {{LLMQA('What color is the sky?')}} AS answer
-                """
-            )
-            _ = bsql.execute(
-                """
-                WITH subset AS (
-                    SELECT * FROM Reviews LIMIT 1
-                )
-                SELECT {{LLMMap('Say hello', reviewText)}} FROM subset
-                """
-            )
+            bsql._warmup()
 
             # Run queries
             results = []

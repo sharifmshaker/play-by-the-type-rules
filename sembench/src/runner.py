@@ -17,15 +17,15 @@ from contextlib import contextmanager
 
 from blendsql.common.logger import logger
 
-from src.config import DUCKDB_DB_PATH, MODEL_CONFIGS, ModelConfig
-from src.database_utils import create_duckdb_database
+from sembench.src.config import DUCKDB_DB_PATH, MODEL_CONFIGS, ModelConfig
+from sembench.src.database_utils import create_duckdb_database
 from src.eval_scripts import (
     run_blendsql_eval,
     run_thalamusdb_eval,
     run_lotus_eval,
     run_palimpzest_eval,
 )
-from src.create_ground_truth import create_ground_truth
+from sembench.src.create_ground_truth import create_ground_truth
 from src.evaluation.evaluate import MovieEvaluator
 
 # Configure litellm
@@ -232,7 +232,7 @@ def main():
 
     Run via `python main.py bt 4b` (where `bt` refers to the systems to evaluate and `12b` is model size)
     """
-    from src.config import BASE_OUTPUT_DIR
+    from sembench.src.config import BASE_OUTPUT_DIR
 
     evals_to_run, model_config, eval_timeout, n_runs = parse_args()
 

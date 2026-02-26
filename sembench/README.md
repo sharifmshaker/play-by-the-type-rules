@@ -11,7 +11,7 @@ uv pip install -r requirements.txt
 To run the core experiment:
 
 ```
-./scripts/run_sembench.sh
+./run.sh
 ```
 
 ![SemBench Movies Results](./img/performance_latency_scatter_gemma-3.png)

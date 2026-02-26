@@ -1,12 +1,16 @@
 def create_ground_truth():
+    import os
     import duckdb
     import time
     import pandas as pd
 
-    from .database_utils import iter_queries
-    from .config import DUCKDB_DB_PATH
+    from blendsql.common.utils import fetch_from_hub
 
-    with duckdb.connect(DUCKDB_DB_PATH, read_only=True) as con:
+    from src.database_utils import iter_queries
+
+    dataset_hub_path = os.environ["DATASET_HUB_PATH"]
+
+    with duckdb.connect(fetch_from_hub(dataset_hub_path), read_only=True) as con:
         print(
             f"Reviews has {con.execute('SELECT COUNT(*) FROM Reviews').fetchone()} rows"
         )
@@ -23,7 +27,7 @@ def create_ground_truth():
             latency = time.time() - start
             results.append(
                 {
-                    "system_name": "thalamusdb",
+                    "system_name": "ground_truth",
                     "query_name": query_name,
                     "latency": latency,
                     "prediction": result.to_json(orient="split", index=False),

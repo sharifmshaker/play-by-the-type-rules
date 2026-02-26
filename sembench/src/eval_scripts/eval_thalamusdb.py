@@ -1,7 +1,15 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = "==3.12"
+# dependencies = ["thalamusdb==0.1.15", "huggingface_hub"]
+# ///
+
 import tdb.operators.semantic_filter
+from tdb.execution.counters import LLMCounters
 import litellm
 from litellm import completion
-from ..config import MODEL_PARAMS
+from sembench.config import MODEL_PARAMS
 
 
 def make_llama_compatible(config):
@@ -87,8 +95,6 @@ class CustomBatchJoin(BatchJoin):
         nr_right_items = len(right_items)
         if nr_left_items == 0 or nr_right_items == 0:
             return []
-        # print(f'Nr of left items: {nr_left_items}, ')
-        # print(f'Nr of right items: {nr_right_items}')
         # Construct prompt for LLM
         prompt = self._create_prompt(left_items, right_items)
         messages = [prompt]
@@ -112,46 +118,41 @@ class CustomBatchJoin(BatchJoin):
 
 tdb.operators.semantic_join.BatchJoin = CustomBatchJoin
 
-from tdb.execution.counters import LLMCounters
+import json
+import pandas as pd
+import time
+import duckdb
+from contextlib import contextmanager, nullcontext
+import os
+import sys
 
-from ..config import ModelConfig
+@contextmanager
+def suppress_stdout():
+    with open(os.devnull, "w") as devnull:
+        old_stdout = sys.stdout
+        sys.stdout = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
 
+from tdb.data.relational import Database
+from tdb.execution.constraints import Constraints
+from tdb.execution.engine import ExecutionEngine
+from tdb.queries.query import Query
 
-def run_thalamusdb_eval(model_config: ModelConfig):
-    import json
-    import pandas as pd
-    import time
-    import duckdb
-    from contextlib import contextmanager
-    import os
-    import sys
+from sembench.database_utils import iter_queries, fetch_from_hub
+from sembench.gpu_util_tracker import track_gpu
+from sembench.config import N_PARALLEL, DUCKDB_SEED, THALAMUS_CONFIG_PATH
 
-    @contextmanager
-    def suppress_stdout():
-        with open(os.devnull, "w") as devnull:
-            old_stdout = sys.stdout
-            sys.stdout = devnull
-            try:
-                yield
-            finally:
-                sys.stdout = old_stdout
+if __name__ == "__main__":
+    model_name_or_path = os.environ["MODEL_NAME_OR_PATH"]
+    base_url = os.environ["BASE_URL"]
+    has_gpu = os.environ.get("HAS_GPU", "false") == "true"
+    output_path = os.environ["OUTPUT_PATH"]
+    dataset_hub_path = os.environ["DATASET_HUB_PATH"]
 
-    from tdb.data.relational import Database
-    from tdb.execution.constraints import Constraints
-    from tdb.execution.engine import ExecutionEngine
-    from tdb.queries.query import Query
-
-    from blendsql.common.logger import Color, logger
-
-    from ..config import (
-        DUCKDB_DB_PATH,
-        N_PARALLEL,
-        DUCKDB_SEED,
-        THALAMUS_CONFIG_PATH,
-    )
-    from ..database_utils import iter_queries
-    from ..gpu_util_tracker import track_gpu
-    import litellm
+    print(f"{output_path=}, {model_name_or_path=}, {base_url=}, {has_gpu=}, {dataset_hub_path=}")
 
     litellm.drop_params = True
     litellm.completion_kwargs = {
@@ -159,11 +160,9 @@ def run_thalamusdb_eval(model_config: ModelConfig):
         "temperature": MODEL_PARAMS["temperature"],
     }
 
-    with duckdb.connect(DUCKDB_DB_PATH) as con:
+    with duckdb.connect(fetch_from_hub(dataset_hub_path), read_only=True) as con:
         con.execute(f"SELECT setseed({DUCKDB_SEED})")
-        logger.debug(Color.horizontal_line())
-        logger.debug(Color.model_or_data_update("~~~~~ Running thalamusdb eval ~~~~~"))
-        Color.in_block = True
+        print("~~~~~ Running thalamusdb eval ~~~~~")
 
         ########### Prepare database + model ###########
         import rich.console
@@ -179,7 +178,7 @@ def run_thalamusdb_eval(model_config: ModelConfig):
         #################################################
 
         # Create model configuration file
-        tdb_model_name = f"hosted_vllm/{model_config.model_name_or_path}"
+        tdb_model_name = f"hosted_vllm/{model_name_or_path}"
         with open(THALAMUS_CONFIG_PATH, "w") as f:
             json.dump(
                 {
@@ -190,7 +189,7 @@ def run_thalamusdb_eval(model_config: ModelConfig):
                             "kwargs": {
                                 "filter": {
                                     "model": tdb_model_name,
-                                    "api_base": model_config.base_url,
+                                    "api_base": base_url,
                                     "api_key": "N.A.",
                                     "temperature": MODEL_PARAMS["temperature"],
                                     "max_tokens": 1,
@@ -198,7 +197,7 @@ def run_thalamusdb_eval(model_config: ModelConfig):
                                 },
                                 "join": {
                                     "model": tdb_model_name,
-                                    "api_base": model_config.base_url,
+                                    "api_base": base_url,
                                     "api_key": "N.A.",
                                     "temperature": MODEL_PARAMS["temperature"],
                                     "stop": ["."],
@@ -218,32 +217,34 @@ def run_thalamusdb_eval(model_config: ModelConfig):
             dop=N_PARALLEL,
             model_config_path=THALAMUS_CONFIG_PATH,
         )
-        constraints = Constraints(max_calls=1000, max_seconds=6000)
+        constraints = Constraints(
+            max_calls=10000000000000000000000000000,
+            max_seconds=10000000000000000000000000000,
+            max_tokens=10000000000000000000000000000,
+        )
 
         # Run queries
         results = []
         for query_file, query_name in iter_queries("thalamusdb"):
             query = open(query_file).read()
             start = time.time()
-            query = Query(db, query)
             with suppress_stdout():
-                with track_gpu() as gpu_data:
+                with (track_gpu() if has_gpu else nullcontext()) as gpu_data:
+                    start = time.perf_counter()
+                    query = Query(db, query)
                     result, counters = engine.run(query, constraints)
-            latency = time.time() - start
+                    latency = time.perf_counter() - start
             model_counter: LLMCounters = counters.model2counters[tdb_model_name]
             results.append(
                 {
                     "system_name": "thalamusdb",
                     "query_name": query_name,
                     "latency": latency,
-                    "gpu_usage": gpu_data.copy(),
+                    "gpu_usage": gpu_data,
                     "prediction": result.to_json(orient="split", index=False),
                     "num_generation_calls": model_counter.LLM_calls,
                     "output_tokens": model_counter.output_tokens,
                     "input_tokens": model_counter.input_tokens,
                 }
             )
-
-    Color.in_block = False
-
-    return pd.DataFrame(results)
+    pd.DataFrame(results).to_csv(output_path)

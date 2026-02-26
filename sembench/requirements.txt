@@ -1,7 +1,3 @@
-vllm==0.15.1
-duckdb>=1.4.3
+blendsql
 cdlib
-thalamusdb==0.1.15
-lotus-ai==1.1.4
-palimpzest==0.8.2
-blendsql==0.1.10
+huggingface_hub

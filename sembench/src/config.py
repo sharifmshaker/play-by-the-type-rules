@@ -2,11 +2,9 @@
 Configuration settings for model evaluation framework.
 """
 from pathlib import Path
-from dataclasses import dataclass, field
 from datetime import datetime
 
 BASE_DIR = Path(__file__).resolve().parent
-USE_DATA_SIZE = 2000
 DUCKDB_SEED = 0.5
 
 MODEL_PARAMS = {
@@ -25,41 +23,12 @@ MODEL_PARAMS = {
     "n_batch": 2048,
 }
 
-
-@dataclass
-class ModelConfig:
-    model_name_or_path: str = field()
-    base_url: str = field(default="http://localhost:8000/v1")
-
-
-MODEL_CONFIGS = {
-    "gemma_12b": ModelConfig(
-        model_name_or_path="RedHatAI/gemma-3-12b-it-quantized.w4a16",
-    ),
-    "gemma_4b": ModelConfig(
-        model_name_or_path="RedHatAI/gemma-3-4b-it-quantized.w4a16",
-    ),
-    "gemma_27b": ModelConfig(
-        model_name_or_path="google_gemma-3-27b-it", 
-    ),
-    "qwen_4b": ModelConfig(
-        model_name_or_path="Qwen/Qwen3-4B-Instruct-2507-FP8",
-    ),
-    "qwen_7b": ModelConfig(
-        model_name_or_path="RedHatAI/Qwen2.5-VL-7B-Instruct-quantized.w4a16",
-    ),
-}
-
-current_date = datetime.now().strftime("%Y-%m-%d")
-BASE_OUTPUT_DIR = Path(__file__).resolve().parent.parent / "results" / current_date
-
 # System params
 N_PARALLEL = 32
 
 # Paths
 MOVIE_FILES_DIR = BASE_DIR / "data"
-DUCKDB_DB_PATH = MOVIE_FILES_DIR / f"movie_database_{USE_DATA_SIZE}.duckdb"
-QUERIES_DIR = BASE_DIR / "queries/movie-verified"
+QUERIES_DIR = BASE_DIR / "queries/movie_verified"
 THALAMUS_CONFIG_PATH = "../thalamus_db_model_config.json"
 
 # Query Filtering

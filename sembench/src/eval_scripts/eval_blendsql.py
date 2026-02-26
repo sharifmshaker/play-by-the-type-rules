@@ -2,7 +2,7 @@
 #
 # /// script
 # requires-python = "==3.12"
-# dependencies = ["blendsql==0.1.12"]
+# dependencies = ["blendsql==0.1.12", "transformers"]
 # ///
 
 import os
@@ -10,6 +10,7 @@ import pandas as pd
 import time
 import duckdb
 from contextlib import nullcontext
+from transformers import AutoTokenizer
 
 from blendsql import BlendSQL
 from blendsql.models import VLLM
@@ -17,9 +18,9 @@ from blendsql.db import DuckDB
 from blendsql.common.logger import Color, logger
 from blendsql import config
 
-from sembench.config import N_PARALLEL, DUCKDB_SEED, MODEL_PARAMS
-from sembench.database_utils import iter_queries, fetch_from_hub
-from sembench.gpu_util_tracker import track_gpu
+from src.config import N_PARALLEL, DUCKDB_SEED, MODEL_PARAMS
+from src.database_utils import iter_queries, fetch_from_hub
+from src.gpu_util_tracker import track_gpu
 
 config.set_deterministic(True)
 config.set_async_limit(N_PARALLEL)
@@ -31,10 +32,11 @@ if __name__ == "__main__":
     has_gpu = os.environ.get("HAS_GPU", "false") == "true"
     output_path = os.environ["OUTPUT_PATH"]
     dataset_hub_path = os.environ["DATASET_HUB_PATH"]
+    offline_mode = os.getenv("OFFLINE_MODE", '0') == '1'
 
     print(f"{output_path=}, {model_name_or_path=}, {base_url=}, {has_gpu=}, {dataset_hub_path=}")
 
-    with duckdb.connect(fetch_from_hub(dataset_hub_path), read_only=True) as con:
+    with duckdb.connect(dataset_hub_path if offline_mode else fetch_from_hub(dataset_hub_path), read_only=True) as con:
         con.execute(f"SELECT setseed({DUCKDB_SEED})")
         logger.debug(Color.horizontal_line())
         logger.debug(
@@ -48,6 +50,7 @@ if __name__ == "__main__":
             model=VLLM(
                 model_name_or_path=model_name_or_path,
                 base_url=base_url,
+                tokenizer=AutoTokenizer.from_pretrained(model_name_or_path) if offline_mode else None
             ),
             verbose=False,
         )

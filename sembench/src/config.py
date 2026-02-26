@@ -28,7 +28,7 @@ N_PARALLEL = 32
 
 # Paths
 MOVIE_FILES_DIR = BASE_DIR / "data"
-QUERIES_DIR = BASE_DIR / "queries/movie_verified"
+QUERIES_DIR = BASE_DIR / "queries/movie-verified"
 THALAMUS_CONFIG_PATH = "../thalamus_db_model_config.json"
 
 # Query Filtering

@@ -16,21 +16,20 @@ from lotus.models import LM
 
 import importlib.util
 from contextlib import nullcontext
-from sembench.config import N_PARALLEL, MODEL_PARAMS
+from src.config import N_PARALLEL, MODEL_PARAMS
 import litellm
 
 original_completion = litellm.completion
 def patched_completion(*args, **kwargs):
     litellm.drop_params = True
     kwargs["temperature"] = MODEL_PARAMS["temperature"]
-    out = original_completion(*args, **kwargs)
-    print(out)
+    return original_completion(*args, **kwargs)
 
 litellm.completion = patched_completion
 
-from sembench.config import DUCKDB_SEED
-from sembench.gpu_util_tracker import track_gpu
-from sembench.database_utils import iter_queries, fetch_from_hub
+from src.config import DUCKDB_SEED
+from src.gpu_util_tracker import track_gpu
+from src.database_utils import iter_queries, fetch_from_hub
 
 if __name__ == "__main__":
     model_name_or_path = os.environ["MODEL_NAME_OR_PATH"]
@@ -38,6 +37,7 @@ if __name__ == "__main__":
     has_gpu = os.environ.get("HAS_GPU", "false") == "true"
     output_path = os.environ["OUTPUT_PATH"]
     dataset_hub_path = os.environ["DATASET_HUB_PATH"]
+    offline_mode = os.getenv("OFFLINE_MODE", '0') == '1'
 
     print(f"{output_path=}, {model_name_or_path=}, {base_url=}, {has_gpu=}, {dataset_hub_path=}")
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
         return module
 
-    with duckdb.connect(fetch_from_hub(dataset_hub_path)) as con:
+    with duckdb.connect(dataset_hub_path if offline_mode else fetch_from_hub(dataset_hub_path), read_only=True) as con:
         con.execute(f"SELECT setseed({DUCKDB_SEED})")
         print("~~~~~ Running lotus eval ~~~~~")
 

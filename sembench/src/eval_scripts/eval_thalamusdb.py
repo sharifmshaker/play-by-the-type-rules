@@ -9,7 +9,7 @@ import tdb.operators.semantic_filter
 from tdb.execution.counters import LLMCounters
 import litellm
 from litellm import completion
-from sembench.config import MODEL_PARAMS
+from src.config import MODEL_PARAMS
 
 
 def make_llama_compatible(config):
@@ -141,9 +141,9 @@ from tdb.execution.constraints import Constraints
 from tdb.execution.engine import ExecutionEngine
 from tdb.queries.query import Query
 
-from sembench.database_utils import iter_queries, fetch_from_hub
-from sembench.gpu_util_tracker import track_gpu
-from sembench.config import N_PARALLEL, DUCKDB_SEED, THALAMUS_CONFIG_PATH
+from src.database_utils import iter_queries, fetch_from_hub
+from src.gpu_util_tracker import track_gpu
+from src.config import N_PARALLEL, DUCKDB_SEED, THALAMUS_CONFIG_PATH
 
 if __name__ == "__main__":
     model_name_or_path = os.environ["MODEL_NAME_OR_PATH"]
@@ -151,6 +151,7 @@ if __name__ == "__main__":
     has_gpu = os.environ.get("HAS_GPU", "false") == "true"
     output_path = os.environ["OUTPUT_PATH"]
     dataset_hub_path = os.environ["DATASET_HUB_PATH"]
+    offline_mode = os.getenv("OFFLINE_MODE", '0') == '1'
 
     print(f"{output_path=}, {model_name_or_path=}, {base_url=}, {has_gpu=}, {dataset_hub_path=}")
 
@@ -160,7 +161,7 @@ if __name__ == "__main__":
         "temperature": MODEL_PARAMS["temperature"],
     }
 
-    with duckdb.connect(fetch_from_hub(dataset_hub_path), read_only=True) as con:
+    with duckdb.connect(dataset_hub_path if offline_mode else fetch_from_hub(dataset_hub_path), read_only=True) as con:
         con.execute(f"SELECT setseed({DUCKDB_SEED})")
         print("~~~~~ Running thalamusdb eval ~~~~~")
 

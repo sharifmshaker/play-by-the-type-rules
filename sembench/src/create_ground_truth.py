@@ -9,8 +9,9 @@ def create_ground_truth():
     from src.database_utils import iter_queries
 
     dataset_hub_path = os.environ["DATASET_HUB_PATH"]
-
-    with duckdb.connect(fetch_from_hub(dataset_hub_path), read_only=True) as con:
+    offline_mode = os.getenv("OFFLINE_MODE", '0') == '1'
+    
+    with duckdb.connect(dataset_hub_path if offline_mode else fetch_from_hub(dataset_hub_path), read_only=True) as con:
         print(
             f"Reviews has {con.execute('SELECT COUNT(*) FROM Reviews').fetchone()} rows"
         )

@@ -3,28 +3,22 @@ export PYTHONPATH="$(pwd):$PYTHONPATH"
 chmod -R u+x src/eval_scripts
 
 # With the below on, all paths point to local files as opposed to HuggingFace datasets/models.
-OFFLINE_MODE=1
+OFFLINE_MODE=0
 
 RESULTS_DIR="./results"
 N_RUNS=5
 SYSTEMS=("blendsql" "thalamusdb" "lotus")
 
-export DATASET_HUB_PATH="./local_data/movie_database_2000.duckdb"
+export DATASET_HUB_PATH="movie/sf_2000/movie_database_2000.duckdb"
 
 declare MODEL_NAME_OR_PATH
 declare BASE_URL
 
-MODEL_NAME_OR_PATH["gemma_4b"]="/home/jovyan/model-registry/google_gemma-3-4b-it"
+MODEL_NAME_OR_PATH["gemma_4b"]="RedHatAI/gemma-3-4b-it-quantized.w4a16"
 BASE_URL["gemma_4b"]="http://127.0.0.1:8000/v1/"
 
-MODEL_NAME_OR_PATH["gemma_12b"]="/home/jovyan/model-registry/google_gemma-3-12b-it"
+MODEL_NAME_OR_PATH["gemma_12b"]="RedHatAI/gemma-3-12b-it-quantized.w4a16"
 BASE_URL["gemma_12b"]="http://127.0.0.1:8000/v1/"
-
-MODEL_NAME_OR_PATH["llama_1b"]="/home/jovyan/model-registry/meta-llama_llama-3.2-1b-instruct"
-BASE_URL["llama_1b"]="http://127.0.0.1:8000/v1/"
-
-MODEL_NAME_OR_PATH["llama_3b"]="/home/jovyan/model-registry/meta-llama_llama-3.2-3b-instruct"
-BASE_URL["llama_3b"]="http://127.0.0.1:8000/v1/"
 
 set_model_config() {
     local key=$1
@@ -70,7 +64,7 @@ fi
 
 export HAS_GPU=has_gpu
 
-for model_name in "gemma_4b" "gemma_12b" "llama_1b" "llama_3b"; do
+for model_name in "gemma_4b" "gemma_12b"; do
   set_model_config ${model_name}
   start_vllm ${model_path}
   for system in "${SYSTEMS[@]}"; do

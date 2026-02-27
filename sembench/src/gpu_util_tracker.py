@@ -23,7 +23,7 @@ def track_gpu(interval=0.01):
                 text=True,
             )
             data["timestamps"].append(time.time() - start)
-            data["gpu_util"].append(float(result.stdout.strip()))
+            data["gpu_util"].append(float(result.stdout.split('\n')[0].strip()))
             time.sleep(interval)
 
     thread = threading.Thread(target=collect)

@@ -11,8 +11,8 @@ SYSTEMS=("blendsql" "thalamusdb" "lotus")
 
 export DATASET_HUB_PATH="movie/sf_2000/movie_database_2000.duckdb"
 
-declare MODEL_NAME_OR_PATH
-declare BASE_URL
+declare -A MODEL_NAME_OR_PATH
+declare -A BASE_URL
 
 MODEL_NAME_OR_PATH["gemma_4b"]="RedHatAI/gemma-3-4b-it-quantized.w4a16"
 BASE_URL["gemma_4b"]="http://127.0.0.1:8000/v1/"

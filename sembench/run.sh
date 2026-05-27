@@ -1,30 +1,42 @@
 #!/bin/bash
+# This script assumes:
+# 1) The host device has access to exactly 1 GPU, or
+# 2) The host device has no GPU, and is interacting with a remote vLLM server
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 chmod -R u+x src/eval_scripts
 
+#----------------------- CONFIG -----------------------#
 # With the below on, all paths point to local files as opposed to HuggingFace datasets/models.
 OFFLINE_MODE=0
-
-RESULTS_DIR="./results"
+declare -A SPLIT_SCALE_FACTORS
+SPLIT_SCALE_FACTORS=(
+  ["movie"]=2000
+  ["ecomm"]=500
+  ["mmqa"]=200
+  ["wildlife"]=200
+)
+SEMBENCH_SPLITS=("${!SPLIT_SCALE_FACTORS[@]}")
 N_RUNS=5
-SYSTEMS=("blendsql" "thalamusdb" "lotus")
+# n_parallel, enable_cascade_filter, enable_early_exit, enable_constrained_decoding
+SYSTEMS=(
+#"blendsql"
+#"palimpzest"
+#"lotus"
+#"thalamusdb"
+"blendsql:1:true:true"
+"blendsql:16:true:true"
+"blendsql:32:true:true"
+"blendsql:64:true:true"
+"blendsql:128:true:true"
+"blendsql:64:true:true"
+"blendsql:64:true:true:false"
+"blendsql:64:true:false:true"
+"blendsql:64:false:false:true"
+)
+MODELS=("gemma_e4b" "gemma_e2b")
+#------------------------------------------------------#
 
-export DATASET_HUB_PATH="movie/sf_2000/movie_database_2000.duckdb"
-
-declare -A MODEL_NAME_OR_PATH
-declare -A BASE_URL
-
-MODEL_NAME_OR_PATH["gemma_4b"]="RedHatAI/gemma-3-4b-it-quantized.w4a16"
-BASE_URL["gemma_4b"]="http://127.0.0.1:8000/v1/"
-
-MODEL_NAME_OR_PATH["gemma_12b"]="RedHatAI/gemma-3-12b-it-quantized.w4a16"
-BASE_URL["gemma_12b"]="http://127.0.0.1:8000/v1/"
-
-set_model_config() {
-    local key=$1
-    model_path="${MODEL_NAME_OR_PATH[$key]}"
-    base_url="${BASE_URL[$key]}"
-}
+source "$(dirname "$0")/model_config.sh"
 
 start_vllm() {
   local model_path=$1  
@@ -42,10 +54,11 @@ start_vllm() {
     --port 8000 \
     --tensor-parallel-size "${num_gpus}" \
     --enable-prefix-caching \
-    --max-model-len 16000 \
+    --max-model-len 32000 \
     --structured-outputs-config.backend guidance \
-    --gpu_memory_utilization 0.8 \
-    --enable-prompt-tokens-details &
+    --gpu_memory_utilization 0.9 \
+    --mm-processor-kwargs '{"max_length": 480000}' \
+    --enable-prompt-tokens-details ${extra_serve_args} > /tmp/vllm.log 2>&1  &
 
     echo "Waiting for vLLM to load the model..."
     
@@ -62,30 +75,61 @@ else
     has_gpu=false
 fi
 
-export HAS_GPU=has_gpu
+export HAS_GPU=$has_gpu
 
-for model_name in "gemma_4b" "gemma_12b"; do
-  set_model_config ${model_name}
-  start_vllm ${model_path}
-  for system in "${SYSTEMS[@]}"; do
-      for run in $(seq 0 $((N_RUNS - 1))); do
-          out_dir="${RESULTS_DIR}/${model_name}/${system}"
-          mkdir -p "$out_dir"
-          echo "Running ${system} run_${run}..."
-          MODEL_NAME_OR_PATH="$model_path" \
-          BASE_URL="$base_url" \
-          OUTPUT_PATH="${out_dir}/run_${run}.csv" \
-          OFFLINE_MODE=$OFFLINE_MODE \
-          ./src/eval_scripts/eval_${system}.py
-      done
-  done
-  pkill vllm
-    while pgrep vllm > /dev/null; do 
-        sleep 1
+for sembench_split in "${SEMBENCH_SPLITS[@]}"; do
+  scale_factor="${SPLIT_SCALE_FACTORS[$sembench_split]}"
+  export DATASET_HUB_PATH="${sembench_split}/sf_${scale_factor}/${sembench_split}_database_${scale_factor}.duckdb"
+  export QUERIES_DIR="src/queries/${sembench_split}"
+  RESULTS_DIR="./results/${sembench_split}"
+  for model_name in "${MODELS[@]}"; do
+    set_model_config ${model_name}
+    start_vllm ${model_path}
+    for system_entry in "${SYSTEMS[@]}"; do
+        IFS=':' read -r system n_parallel enable_cascade_filter enable_early_exit enable_constrained_decoding <<< "$system_entry"
+        n_parallel="${n_parallel:-32}"
+        enable_cascade_filter="${enable_cascade_filter:-true}"
+        enable_early_exit="${enable_early_exit:-true}"
+        enable_constrained_decoding="${enable_constrained_decoding:-true}"
+        out_label="${system}"
+        [[ -n "$n_parallel" ]]           && out_label+="_np${n_parallel}"
+        [[ -n "$enable_cascade_filter" ]] && out_label+="_cf${enable_cascade_filter}"
+        [[ -n "$enable_constrained_decoding" ]] && out_label+="_cd${enable_constrained_decoding}"
+        [[ -n "$enable_cascade_filter" ]] && out_label+="_ee${enable_early_exit}"
+
+        for run in $(seq 0 $((N_RUNS - 1))); do
+            out_dir="${RESULTS_DIR}/${model_name}/${out_label}"
+            mkdir -p "$out_dir"
+            echo "Running ${system} run_${run}..."
+            MODEL_NAME_OR_PATH="$model_path" \
+            BASE_URL="$base_url" \
+            EXTRA_BODY="$extra_body" \
+            OUTPUT_PATH="${out_dir}/run_${run}.csv" \
+            OFFLINE_MODE=$OFFLINE_MODE \
+            SEMBENCH_SPLIT=$sembench_split \
+            N_PARALLEL="${n_parallel}" \
+            ENABLE_CONSTRAINED_DECODING="${enable_constrained_decoding}" \
+            ENABLE_CASCADE_FILTER="${enable_cascade_filter}" \
+            ENABLE_EARLY_EXIT="${enable_early_exit}" \
+            python ./src/eval_scripts/eval_${system}.py
+        done
     done
-  echo "Aggregating results..."
-  OFFLINE_MODE=$OFFLINE_MODE python ./src/aggregate_results.py "${RESULTS_DIR}/${model_name}" 
-done
+    pkill vllm
+      while pgrep vllm > /dev/null; do
+          sleep 1
+      done
+    echo "Aggregating results..."
+    SEMBENCH_SPLIT=${sembench_split} python ./src/aggregate_results.py "${RESULTS_DIR}/${model_name}"
+  done
+  echo "Creating plot..."
+  if [ "$sembench_split" = "movie" ] || [ "$sembench_split" = "ecomm" ] || [ "$sembench_split" = "mmqa" ] || [ "$sembench_split" = "wildlife" ]; then
+    IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=1
+  else
+      IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=0
+  fi
 
-echo "Creating plot..."
-RESULTS_DIR="$RESULTS_DIR" OFFLINE_MODE=$OFFLINE_MODE ./src/plot.py
+  RESULTS_DIR="$RESULTS_DIR" OFFLINE_MODE=$OFFLINE_MODE \
+    IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=$IS_COMPARABLE_TO_ORIGINAL_SEMBENCH \
+    SEMBENCH_SPLIT=${sembench_split} \
+    ./src/plot.py
+  done

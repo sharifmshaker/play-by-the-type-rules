@@ -1,0 +1,1 @@
+select distinct city from (select city from image_data where Species LIKE '%MONKEY%') INTERSECT (select city from audio_data where Animal = 'Monkey');

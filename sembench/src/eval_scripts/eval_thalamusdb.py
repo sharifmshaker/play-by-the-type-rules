@@ -9,7 +9,6 @@ import tdb.operators.semantic_filter
 from tdb.execution.counters import LLMCounters
 import litellm
 from litellm import completion
-from src.config import MODEL_PARAMS
 
 
 def make_llama_compatible(config):
@@ -55,7 +54,6 @@ def _modified_filter_completion_wrapper(item_text, kwargs):
     """
     # Ensure parameters are dropped for logging where applicable
     litellm.drop_params = True
-    kwargs["temperature"] = MODEL_PARAMS["temperature"]
     kwargs["supports_system_message"] = False
     response = completion(**make_llama_compatible(kwargs))
     # ThalamusDB does this on their filter:
@@ -101,7 +99,6 @@ class CustomBatchJoin(BatchJoin):
         base = self._best_model_args(messages)["join"]
         kwargs = {**base, "messages": messages}
         litellm.drop_params = True
-        kwargs["temperature"] = MODEL_PARAMS["temperature"]
         kwargs["supports_system_message"] = False
         response = completion(**make_llama_compatible(kwargs))
         model = kwargs["model"]
@@ -143,7 +140,7 @@ from tdb.queries.query import Query
 
 from src.database_utils import iter_queries, fetch_from_hub
 from src.gpu_util_tracker import track_gpu
-from src.config import N_PARALLEL, DUCKDB_SEED, THALAMUS_CONFIG_PATH
+from src.config import DUCKDB_SEED, THALAMUS_CONFIG_PATH
 
 if __name__ == "__main__":
     model_name_or_path = os.environ["MODEL_NAME_OR_PATH"]
@@ -152,14 +149,11 @@ if __name__ == "__main__":
     output_path = os.environ["OUTPUT_PATH"]
     dataset_hub_path = os.environ["DATASET_HUB_PATH"]
     offline_mode = os.getenv("OFFLINE_MODE", '0') == '1'
+    n_parallel = int(os.environ["N_PARALLEL"])
 
     print(f"{output_path=}, {model_name_or_path=}, {base_url=}, {has_gpu=}, {dataset_hub_path=}")
 
     litellm.drop_params = True
-    litellm.completion_kwargs = {
-        "max_tokens": MODEL_PARAMS["max_tokens"],
-        "temperature": MODEL_PARAMS["temperature"],
-    }
 
     with duckdb.connect(dataset_hub_path if offline_mode else fetch_from_hub(dataset_hub_path), read_only=True) as con:
         con.execute(f"SELECT setseed({DUCKDB_SEED})")
@@ -192,7 +186,6 @@ if __name__ == "__main__":
                                     "model": tdb_model_name,
                                     "api_base": base_url,
                                     "api_key": "N.A.",
-                                    "temperature": MODEL_PARAMS["temperature"],
                                     "max_tokens": 1,
                                     # "reasoning_effort": "disable",
                                 },
@@ -200,7 +193,6 @@ if __name__ == "__main__":
                                     "model": tdb_model_name,
                                     "api_base": base_url,
                                     "api_key": "N.A.",
-                                    "temperature": MODEL_PARAMS["temperature"],
                                     "stop": ["."],
                                     # "reasoning_effort": "disable",
                                 },
@@ -215,7 +207,7 @@ if __name__ == "__main__":
         db = CustomDatabase(con)
         engine = ExecutionEngine(
             db=db,
-            dop=N_PARALLEL,
+            dop=n_parallel,
             model_config_path=THALAMUS_CONFIG_PATH,
         )
         constraints = Constraints(

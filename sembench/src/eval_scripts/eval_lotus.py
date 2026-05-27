@@ -16,13 +16,11 @@ from lotus.models import LM
 
 import importlib.util
 from contextlib import nullcontext
-from src.config import N_PARALLEL, MODEL_PARAMS
 import litellm
 
 original_completion = litellm.completion
 def patched_completion(*args, **kwargs):
     litellm.drop_params = True
-    kwargs["temperature"] = MODEL_PARAMS["temperature"]
     return original_completion(*args, **kwargs)
 
 litellm.completion = patched_completion
@@ -38,6 +36,8 @@ if __name__ == "__main__":
     output_path = os.environ["OUTPUT_PATH"]
     dataset_hub_path = os.environ["DATASET_HUB_PATH"]
     offline_mode = os.getenv("OFFLINE_MODE", '0') == '1'
+    sembench_split = os.environ["SEMBENCH_SPLIT"]
+    n_parallel = int(os.environ["N_PARALLEL"])
 
     print(f"{output_path=}, {model_name_or_path=}, {base_url=}, {has_gpu=}, {dataset_hub_path=}")
 
@@ -60,15 +60,17 @@ if __name__ == "__main__":
                 api_key="N.A.",
                 # https://docs.litellm.ai/docs/providers/openai_compatible#advanced---disable-system-messages
                 supports_system_message=False,  # lotus uses system prompts. Gemma3 doesn't listen to those.
-                temperature=MODEL_PARAMS["temperature"],
-                max_tokens=MODEL_PARAMS["max_tokens"],
-                max_batch_size=N_PARALLEL,
+                max_batch_size=n_parallel,
             )
         )
 
         # Run queries
         results = []
         for query_file, query_name in iter_queries("lotus"):
+            if sembench_split == 'ecomm':
+                if query_name in ["Q2", "Q4", "Q6", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13"]:
+                    print(f"Skipping Q2....")
+                    continue
             lotus.settings.lm.reset_stats()
             func = load_module(query_file)
             with (track_gpu() if has_gpu else nullcontext()) as gpu_data:
@@ -82,7 +84,7 @@ if __name__ == "__main__":
                     "latency": latency,
                     "gpu_usage": gpu_data,
                     "prediction": result.to_json(orient="split", index=False),
-                    "num_generation_calls": "N.A.",
+                    "num_generation_calls": None,
                     "output_tokens": lotus.settings.lm.stats.physical_usage.completion_tokens,
                     "input_tokens": lotus.settings.lm.stats.physical_usage.prompt_tokens,
                 }

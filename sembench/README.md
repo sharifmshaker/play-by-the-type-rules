@@ -14,8 +14,6 @@ To run the core experiment:
 ./run.sh
 ```
 
-![SemBench Movies Results](./img/performance_latency_scatter_gemma-3.png)
-
 ## Acknowledgements 
 
 This experiment code was adapted from the [SemBench](https://github.com/SemBench/SemBench) codebase. 
@@ -24,10 +22,4 @@ This experiment code was adapted from the [SemBench](https://github.com/SemBench
 ## Citation 
 
 ```
-@article{glenn2025play,
-  title={Play by the Type Rules: Inferring Constraints for LLM Functions in Declarative Programs},
-  author={Glenn, Parker and Samuel, Alfy and Liu, Daben},
-  journal={arXiv preprint arXiv:2509.20208},
-  year={2025}
-}
 ```

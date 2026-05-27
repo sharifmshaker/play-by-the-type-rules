@@ -3,8 +3,14 @@ import pandas as pd
 from io import StringIO
 from dataclasses import asdict
 from pathlib import Path
+import os
 
-from evaluation.evaluate import MovieEvaluator
+from evaluation.cars_evaluator import CarsEvaluator
+from evaluation.movie_evaluator import MovieEvaluator
+from evaluation.ecomm_evaluator import EcommEvaluator
+from evaluation.mmqa_evaluator import MMQAEvaluator
+from evaluation.wildlife_evaluator import WildlifeEvaluator
+
 from create_ground_truth import create_ground_truth
 
 
@@ -17,6 +23,8 @@ def extract_quality_metric(query_data: dict) -> float:
     elif "relative_error" in query_data:
         error = query_data["relative_error"]
         return max(0.0, 1.0 - min(1.0, error))
+    elif 'accuracy' in query_data:
+        return query_data['accuracy']
     else:
         print(f"Warning: No quality metric found in query data, using 0.0")
         return 0.0
@@ -68,11 +76,29 @@ def main():
     all_results_df["quality"] = None
 
     print("Creating ground truth...")
-    evaluator = MovieEvaluator()
+    sembench_split = os.environ["SEMBENCH_SPLIT"]
+    if sembench_split.startswith('movie'):
+        evaluator = MovieEvaluator()
+    elif sembench_split.startswith('ecomm'):
+        evaluator = EcommEvaluator()
+    elif sembench_split.startswith('mmqa'):
+        evaluator = MMQAEvaluator()
+    elif sembench_split.startswith('wildlife'):
+        evaluator = WildlifeEvaluator()
+    elif sembench_split.startswith('cars'):
+        evaluator = CarsEvaluator()
+    else:
+        raise ValueError(f"Unknown sembench split: {sembench_split}")
+
     ground_truth_results_df = create_ground_truth()
+    ground_truth_results_df.to_csv(output_dir / "ground_truth.csv")
 
     for query_name in all_results_df["query_name"].unique():
         print(f"Evaluating {query_name}...")
+        print(ground_truth_results_df[
+            ground_truth_results_df["query_name"] == query_name
+        ]["prediction"])
+
         reference = pd.read_json(
             StringIO(
                 ground_truth_results_df[
@@ -98,9 +124,15 @@ def main():
                 prediction = pd.read_json(
                     StringIO(_prediction["prediction"].item()), orient="split"
                 )
+
+                try:
+                    query_id = int(query_name.replace("Q", ""))
+                except ValueError:
+                    query_id = int(query_name.replace("Q", "")[:-1])  # "3a" -> "3"
+
                 metric_dict = asdict(
                     evaluator.evaluate_single_query(
-                        int(query_name.replace("Q", "")),
+                        query_id,
                         system_results=prediction,
                         ground_truth=reference,
                     )

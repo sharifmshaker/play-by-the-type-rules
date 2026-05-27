@@ -1,10 +1,34 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = "==3.12"
+# dependencies = ["palimpzest==1.4.0", "huggingface_hub", "duckdb"]
+# ///
+
+import palimpzest as pz
+import time
+import duckdb
+import importlib
+import importlib.util
+from contextlib import nullcontext
+import os
 import pandas as pd
-from ..config import ModelConfig
 
+from src.config import DUCKDB_SEED
+from src.database_utils import iter_queries, fetch_from_hub
+from src.gpu_util_tracker import track_gpu
 
-def run_palimpzest_eval(model_config: ModelConfig):
-    from ..config import MODEL_PARAMS, N_PARALLEL, BASE_URL
-    from ..gpu_util_tracker import track_gpu
+if __name__ == "__main__":
+    model_name_or_path = os.environ["MODEL_NAME_OR_PATH"]
+    base_url = os.environ["BASE_URL"]
+    has_gpu = os.environ.get("HAS_GPU", "false") == "true"
+    output_path = os.environ["OUTPUT_PATH"]
+    dataset_hub_path = os.environ["DATASET_HUB_PATH"]
+    offline_mode = os.getenv("OFFLINE_MODE", '0') == '1'
+    sembench_split = os.environ["SEMBENCH_SPLIT"]
+    n_parallel = int(os.environ["N_PARALLEL"])
+
+    print(f"{output_path=}, {model_name_or_path=}, {base_url=}, {has_gpu=}, {dataset_hub_path=}")
 
     import litellm
 
@@ -12,29 +36,12 @@ def run_palimpzest_eval(model_config: ModelConfig):
 
     def patched_completion(*args, **kwargs):
         litellm.drop_params = True
-        kwargs["api_base"] = BASE_URL
         kwargs["supports_system_message"] = False
-        kwargs["temperature"] = MODEL_PARAMS["temperature"]
-        kwargs["model"] = f"hosted_vllm/{model_config.model_name_or_path}"
-        kwargs.pop("reasoning_effort", None)
+
         return original_completion(*args, **kwargs)
 
     # Replace the completion function with your patched version
     litellm.completion = patched_completion
-
-    import palimpzest as pz
-    import time
-    import duckdb
-    import importlib
-
-    from blendsql.common.logger import Color, logger
-
-    from ..config import DUCKDB_DB_PATH
-    from ..database_utils import iter_queries
-    import importlib.util
-    import os
-
-    os.environ["OPENAI_API_KEY"] = "N.A."
 
     def load_module(filename):
         """Load a Python file as a module and execute its run() function."""
@@ -44,30 +51,38 @@ def run_palimpzest_eval(model_config: ModelConfig):
 
         return module
 
-    with duckdb.connect(DUCKDB_DB_PATH) as con:
-        logger.debug(Color.horizontal_line())
-        logger.debug(Color.model_or_data_update("~~~~~ Running palimpzest eval ~~~~~"))
-        Color.in_block = True
+    with duckdb.connect(dataset_hub_path if offline_mode else fetch_from_hub(dataset_hub_path), read_only=True) as con:
+        print("~~~~~ Running palimpzest eval ~~~~~")
+
+        vllm_model = pz.Model(f"hosted_vllm/{model_name_or_path}", api_base=base_url)
 
         # Run queries
         results = []
         for query_file, query_name in iter_queries("palimpzest"):
+            if sembench_split == 'ecomm':
+                if query_name in ["Q2", "Q4", "Q6", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13"]:
+                    print(f"Skipping {query_name}....")
+                    continue
+            elif sembench_split == "mmqa":
+                if query_name in ["Q5"]:
+                    print(f"Skipping {query_name}...")
+                    continue
+
             pz_config = pz.QueryProcessorConfig(
-                max_workers=N_PARALLEL,
-                join_parallelism=N_PARALLEL,
-                verbose=False,
+                max_workers=n_parallel,
+                join_parallelism=n_parallel,
+                verbose=True,
                 progress=False,
-                reasoning_effort=None,
-                # execution_strategy="pipelined",
-                # Placeholder model with reasoning
-                # Need a reasoning model due to this bug: https://github.com/mitdbg/palimpzest/issues/268
-                available_models=["openai/gpt-5-2025-08-07"],
+                available_models=[vllm_model],
+                reasoning_effort='low'
             )
             func = load_module(query_file)
-            start = time.time()
-            with track_gpu() as gpu_data:
-                result = func.run(con, pz_config).to_df()
-            latency = time.time() - start
+            with (track_gpu() if has_gpu else nullcontext()) as gpu_data:
+                start = time.time()
+                result = func.run(con, pz_config)
+                if not isinstance(result, pd.DataFrame):
+                    result = result.to_df()
+                latency = time.time() - start
             results.append(
                 {
                     "system_name": "palimpzest",
@@ -77,5 +92,4 @@ def run_palimpzest_eval(model_config: ModelConfig):
                     "prediction": result.to_json(orient="split", index=False),
                 }
             )
-    Color.in_block = False
-    return pd.DataFrame(results)
+    pd.DataFrame(results).to_csv(output_path)

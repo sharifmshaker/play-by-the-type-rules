@@ -21,6 +21,34 @@ import pandas as pd
 from sklearn.metrics import adjusted_rand_score
 from sklearn.metrics import f1_score
 
+def _normalize_id(value):
+    """Convert an ID value to a hashable, order-independent form."""
+    if isinstance(value, dict):
+        return frozenset(value.items())
+    return value
+
+def _extract_ids(df, id_column, as_json: bool = False):
+    """Extract normalized, hashable IDs from a dataframe."""
+    if df is None or df.empty:
+        return set()
+    if as_json:
+        import json
+        import ast
+        def safe_json_load(v):
+            if isinstance(v, dict):
+                return v
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                try:
+                    return ast.literal_eval(v)
+                except (ValueError, SyntaxError, TypeError) as e:
+                    print(v)
+                    return ""
+        values = [safe_json_load(v) for v in df[id_column].tolist()]
+    else:
+        values = df[id_column].tolist()
+    return set([_normalize_id(value) for value in values])
 
 @dataclass
 class QueryMetricRetrieval:
@@ -395,28 +423,10 @@ class GenericEvaluator(abc.ABC):
             spearman_correlation=spearman_corr.item(), kendall_tau=kendall_corr.item()
         )
 
-    def compute_precision(
-        ground_truth: pd.DataFrame,
-        query_result: pd.DataFrame,
-        id_column: str = "id",
-    ):
-        """
-        Computes the precision of the query result towards the ground truth.
-        Assumes that both dataframes have an "id" column the uniquely identifies
-        a row. The precision is computed based on the IDs in the result and the
-        ground truth.
-        """
-        ground_truth_ids = (
-            set(ground_truth[id_column]) if not ground_truth.empty else set()
-        )
-        result_ids = (
-            set(query_result[id_column])
-            if query_result is not None and not query_result.empty
-            else set()
-        )
+    def compute_precision(ground_truth, query_result, id_column="id", as_json: bool = False):
+        ground_truth_ids = _extract_ids(ground_truth, id_column, as_json=as_json)
+        result_ids = _extract_ids(query_result, id_column, as_json=as_json)
         if len(ground_truth_ids) == 0:
-            # If ground truth is empty, precision is 1.0 if result is also
-            # empty, else 0.0
             return 1.0 if len(result_ids) == 0 else 0.0
         predicted_positives = len(result_ids)
         if predicted_positives == 0:
@@ -424,28 +434,10 @@ class GenericEvaluator(abc.ABC):
         true_positives = len(result_ids & ground_truth_ids)
         return true_positives / predicted_positives
 
-    def compute_recall(
-        ground_truth: pd.DataFrame,
-        query_result: pd.DataFrame,
-        id_column: str = "id",
-    ):
-        """
-        Computes the recall of the query result towards the ground truth.
-        Assumes that both dataframes have an "id" column the uniquely identifies
-        a row. The recall is computed based on the IDs in the result and the
-        ground truth.
-        """
-        ground_truth_ids = (
-            set(ground_truth[id_column]) if not ground_truth.empty else set()
-        )
-        result_ids = (
-            set(query_result[id_column])
-            if query_result is not None and not query_result.empty
-            else set()
-        )
+    def compute_recall(ground_truth, query_result, id_column="id", as_json: bool = False):
+        ground_truth_ids = _extract_ids(ground_truth, id_column, as_json=as_json)
+        result_ids = _extract_ids(query_result, id_column, as_json=as_json)
         if len(ground_truth_ids) == 0:
-            # If ground truth is empty, recall is 1.0 if result is also empty,
-            # else 0.0
             return 1.0 if len(result_ids) == 0 else 0.0
         true_positives = len(result_ids & ground_truth_ids)
         actual_positives = len(ground_truth_ids)
@@ -455,6 +447,7 @@ class GenericEvaluator(abc.ABC):
         ground_truth: pd.DataFrame,
         query_result: pd.DataFrame,
         id_column: str = "id",
+        as_json: bool = False
     ):
         """
         Computes the F1 score of the query result towards the ground truth.
@@ -463,10 +456,10 @@ class GenericEvaluator(abc.ABC):
         ground truth.
         """
         precision = GenericEvaluator.compute_precision(
-            ground_truth, query_result, id_column=id_column
+            ground_truth, query_result, id_column=id_column, as_json=as_json
         )
         recall = GenericEvaluator.compute_recall(
-            ground_truth, query_result, id_column=id_column
+            ground_truth, query_result, id_column=id_column, as_json=as_json
         )
         if precision + recall == 0:
             return 0.0
@@ -534,14 +527,15 @@ class GenericEvaluator(abc.ABC):
         ground_truth: pd.DataFrame,
         query_result: pd.DataFrame,
         id_column: str = "id",
+        as_json: bool = False
     ) -> SingleAccuracyScore:
         # Compute additional helper metrics if we have f1-score, precision, or recall
         if accuracy_metric_type in ["f1-score", "precision", "recall"]:
             f1_score = GenericEvaluator.compute_f1_score(
-                ground_truth, query_result, id_column=id_column
+                ground_truth, query_result, id_column=id_column, as_json=as_json
             )
             precision = GenericEvaluator.compute_precision(
-                ground_truth, query_result, id_column=id_column
+                ground_truth, query_result, id_column=id_column, as_json=as_json
             )
             recall = GenericEvaluator.compute_recall(
                 ground_truth, query_result, id_column=id_column

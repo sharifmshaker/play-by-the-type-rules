@@ -1,12 +1,10 @@
-import duckdb
-import pandas as pd
+import re
 from typing import Generator
-import logging
-
+import os
+from pathlib import Path
 from src.config import (
     SKIP_QUERIES,
     ONLY_USE,
-    QUERIES_DIR,
 )
 
 HF_REPO_ID = "parkervg/blendsql-test-dbs"
@@ -32,10 +30,10 @@ def iter_queries(system_name: str) -> Generator:
     Yields:
         Tuples of (query_file_path, query_name)
     """
-    queries_path = QUERIES_DIR / system_name
+    queries_path = Path(os.environ["QUERIES_DIR"]) / system_name
     sorted_query_files = sorted(
         (f for f in queries_path.iterdir() if not f.name.startswith("_")),
-        key=lambda x: x.stem,
+        key=lambda x: int(re.search('\d+', x.stem).group()),
     )
 
     for query_file in sorted_query_files:

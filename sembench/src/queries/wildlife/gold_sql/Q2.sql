@@ -1,0 +1,1 @@
+select count(*) from audio_data where Animal = 'Elephant';

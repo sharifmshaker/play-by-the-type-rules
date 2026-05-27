@@ -95,7 +95,7 @@ for sembench_split in "${SEMBENCH_SPLITS[@]}"; do
         [[ -n "$n_parallel" ]]           && out_label+="_np${n_parallel}"
         [[ -n "$enable_cascade_filter" ]] && out_label+="_cf${enable_cascade_filter}"
         [[ -n "$enable_constrained_decoding" ]] && out_label+="_cd${enable_constrained_decoding}"
-        [[ -n "$enable_cascade_filter" ]] && out_label+="_ee${enable_early_exit}"
+        [[ -n "$enable_early_exit" ]] && out_label+="_ee${enable_early_exit}"
 
         for run in $(seq 0 $((N_RUNS - 1))); do
             out_dir="${RESULTS_DIR}/${model_name}/${out_label}"
@@ -132,4 +132,3 @@ for sembench_split in "${SEMBENCH_SPLITS[@]}"; do
     IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=$IS_COMPARABLE_TO_ORIGINAL_SEMBENCH \
     SEMBENCH_SPLIT=${sembench_split} \
     ./src/plot.py
-  done

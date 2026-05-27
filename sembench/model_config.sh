@@ -46,7 +46,7 @@ EXTRA_BODY["qwen3_4b_nothinking"]='{
   "presence_penalty": 1.0,
   "repetition_penalty": 1.0
 }'
-EXTRA_SERVE_ARGS["qwen3_4b_thinking"]='--reasoning-parser qwen3'
+EXTRA_SERVE_ARGS["qwen3_4b_nothinking"]='--reasoning-parser qwen3'
 
 MODEL_NAME_OR_PATH["qwen35_4b_nothinking"]="cyankiwi/Qwen3.5-4B-AWQ-4bit"
 BASE_URL["qwen35_4b_nothinking"]="http://127.0.0.1:8000/v1/"

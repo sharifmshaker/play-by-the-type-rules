@@ -74,9 +74,8 @@ if __name__ == "__main__":
         for query_file, query_name in iter_queries("blendsql"):
             if sembench_split == "cars":
                 if query_name == "Q9":
-                    continue
+                    continue # The ground truth for this query returns an empty subset
             query = open(query_file).read()
-            enable_constrained_decoding = True
             with (track_gpu() if has_gpu else nullcontext()) as gpu_data:
                 start = time.perf_counter()
                 smoothie = bsql.execute(query)

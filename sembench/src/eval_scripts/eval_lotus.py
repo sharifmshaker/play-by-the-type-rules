@@ -67,10 +67,6 @@ if __name__ == "__main__":
         # Run queries
         results = []
         for query_file, query_name in iter_queries("lotus"):
-            if sembench_split == 'ecomm':
-                if query_name in ["Q2", "Q4", "Q6", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13"]:
-                    print(f"Skipping Q2....")
-                    continue
             lotus.settings.lm.reset_stats()
             func = load_module(query_file)
             with (track_gpu() if has_gpu else nullcontext()) as gpu_data:

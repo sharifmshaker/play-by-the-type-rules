@@ -1,0 +1,1 @@
+select city from ((select city from image_data where Species LIKE '%ELEPHANT%') UNION (select city from audio_data where Animal = 'Elephant'))  INTERSECT ((select city from image_data where Species LIKE '%MONKEY%') UNION (select city from audio_data where Animal = 'Monkey'))

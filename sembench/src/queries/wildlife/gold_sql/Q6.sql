@@ -1,0 +1,1 @@
+select distinct city from image_data I where Species LIKE '%MONKEY%' and not exists (select * from audio_data A where A.city = I.city and A.animal = 'Monkey');

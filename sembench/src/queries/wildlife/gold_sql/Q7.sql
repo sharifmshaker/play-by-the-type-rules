@@ -1,0 +1,1 @@
+select city from (select city from image_data where Species LIKE '%ZEBRA%') INTERSECT (select city from image_data where Species LIKE '%IMPALA%');

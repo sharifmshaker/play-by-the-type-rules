@@ -15,8 +15,9 @@ img_classifications AS (
             'Classify the clothing item given the description and image.
             ''shoes'' and things like sandals, flip-flops, or other shoes.
             ''bottoms'' are pieces of apparel that can be worn on the lower part of the body, like pants, shorts, and skirts, but NOT swimwear.
-            ''tops'' are pieces of apparel that can be worn on the upper part of the body, like t-shirts, shirts, pullovers, hoodies, but still requires some sort of clothing on the lower body (i.e., not a dress).
-            ''accessories'' are things like jewelry or a bag, including handbags or a (gym) backpacks',
+            ''tops'' are pieces of apparel that can be worn on the upper part of the body, like t-shirts, shirts, pullovers, hoodies (NOT swimwear), but still requires some sort of clothing on the lower body (i.e., not a dress).
+            ''accessories'' are things like jewelry or a bag, including handbags or a (gym) backpacks.
+            If the clothing item is swimwear or anything else, select ''N.A.''',
             title, descr, image_path,
             options=('shoes', 'bottoms', 'tops', 'accessories', 'N.A.')
         )
@@ -33,7 +34,7 @@ img_classifications AS (
 black_clothes AS (
     SELECT * FROM img_classifications
     WHERE category <> 'accessories'
-    AND {{LLMMap('Is the predominant color of the product black?', title, descr)}} = TRUE
+    AND {{LLMMap('Is the predominant color of the product black?', title, descr, image_path)}} = TRUE
 ),
 pairings AS (
     SELECT

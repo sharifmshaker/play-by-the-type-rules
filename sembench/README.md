@@ -1,6 +1,6 @@
 ## Setup 
 
-The experiments were originally run with CUDA 13.0 and python 3.12. All models were run on a single 16GB RTX 5080 with llama-cpp-python==0.3.16.
+The experiments were originally run with CUDA 13.2 and python 3.12. All models were run on a single 16GB RTX 5080 with vllm==0.19.1.
 
 ```
 uv pip install -r requirements.txt

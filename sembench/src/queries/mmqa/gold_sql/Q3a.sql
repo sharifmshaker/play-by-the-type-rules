@@ -1,0 +1,16 @@
+SELECT * FROM (
+    VALUES
+        ('Orange County'),
+        ('Mean Girls'),
+        ('My Best Friend''s Girl'),
+        ('Hot Tub Time Machine'),
+        ('High Road'),
+        ('Save the Date'),
+        ('Bachelorette'),
+        ('3, 2, 1... Frankie Go Boom'),
+        ('Queens of Country'),
+        ('The Interview'),
+        ('The Night Before'),
+        ('The Disaster Artist'),
+        ('The People We Hate at the Wedding')
+) AS t(title);

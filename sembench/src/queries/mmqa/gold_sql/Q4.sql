@@ -1,0 +1,47 @@
+SELECT
+  genre,
+  LIST(title ORDER BY title) AS movies
+FROM (
+  VALUES
+    ('comedy', 'Orange County'),
+    ('comedy', 'Mean Girls'),
+    ('comedy', 'My Best Friend''s Girl'),
+    ('comedy', 'Hot Tub Time Machine'),
+    ('comedy', 'High Road'),
+    ('comedy', 'Save the Date'),
+    ('comedy', 'Bachelorette'),
+    ('comedy', '3, 2, 1... Frankie Go Boom'),
+    ('comedy', 'Queens of Country'),
+    ('comedy', 'The Interview'),
+    ('comedy', 'The Night Before'),
+    ('comedy', 'The Disaster Artist'),
+    ('comedy', 'The People We Hate at the Wedding'),
+    ('drama', 'Love Is the Drug'),
+    ('drama', 'Crashing'),
+    ('drama', 'Crossing Over'),
+    ('drama', '127 Hours'),
+    ('drama', 'Save the Date'),
+    ('drama', 'Allied'),
+    ('drama', 'The Disaster Artist'),
+    ('crime', 'Crossing Over'),
+    ('science fiction', 'Hot Tub Time Machine'),
+    ('science fiction', 'Item 47'),
+    ('science fiction', 'Extinction'),
+    ('romance', 'My Best Friend''s Girl'),
+    ('romance', 'Save the Date'),
+    ('romance', 'Allied'),
+    ('romance', 'The People We Hate at the Wedding'),
+    ('horror', 'Cloverfield'),
+    ('horror', 'Cobweb'),
+    ('western', 'The Last Rites of Ransom Pride'),
+    ('heist', 'Now You See Me 2'),
+    ('biography', '127 Hours'),
+    ('biography', 'The Disaster Artist'),
+    ('action', 'The Interview'),
+    ('action', 'Extinction'),
+    ('satire', 'The Interview'),
+    ('war', 'Allied'),
+    ('thriller', 'Allied')
+) AS t(genre, title)
+GROUP BY genre
+ORDER BY genre;

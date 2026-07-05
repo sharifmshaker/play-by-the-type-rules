@@ -20,6 +20,7 @@ from blendsql import config
 from src.config import DUCKDB_SEED
 from src.database_utils import iter_queries, fetch_from_hub
 from src.gpu_util_tracker import track_gpu
+from model_factory import make_model
 
 config.set_deterministic(True)
 
@@ -57,11 +58,7 @@ if __name__ == "__main__":
         config.set_async_limit(n_parallel)
         bsql = BlendSQL(
             DuckDB(con),
-            model=VLLM(
-                model_name_or_path=model_name_or_path,
-                base_url=base_url,
-                extra_body=extra_body,
-            ),
+            model=make_model(),
             verbose=False,
             enable_constrained_decoding=enable_constrained_decoding,
             enable_cascade_filter=enable_cascade_filter,

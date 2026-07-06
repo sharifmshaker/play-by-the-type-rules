@@ -145,6 +145,11 @@ gemma_cost(total_latency_seconds, gpu_hourly_rate=0.31)
 reports the real per-run cost from the logged tokens.
 
 ## Caveats
+- **After the Gemma run, run `python gpu_check.py`** — it reads the logged GPU
+  utilization and tells you (latency-weighted) whether the heavy queries were
+  **GPU-bound** (latency trustworthy) or **client/CPU-bound** (latency reflects
+  BlendSQL orchestration, not the GPU → use a stronger CPU or lower `N_PARALLEL`).
+  Report CPU **and** GPU specs with any latency claim. See `CONSIDERATIONS.md`.
 - `run_gemini.sh` is reconciled against the real `run.sh`/`eval_blendsql.py`, but
   still **smoke-test one scenario** before a full sweep.
 - 55 queries are noisy → keep `N_RUNS≥3`; `decide.py` treats ±0.02 as a tie.

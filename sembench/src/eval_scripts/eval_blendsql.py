@@ -77,9 +77,14 @@ if __name__ == "__main__":
         done = set()
         if resume and os.path.exists(output_path):
             _prev = pd.read_csv(output_path)
-            results = _prev.to_dict("records")
-            done = set(_prev["query_name"].astype(str))
-            print(f"RESUME: skipping {len(done)} already-completed queries")
+            # Only SUCCESSFUL queries count as done — so RESUME re-runs anything
+            # that previously failed (e.g. a rate-limit 429), rather than keeping
+            # its artificial quality-0 result.
+            _ok = _prev[_prev["error"].isna()] if "error" in _prev.columns else _prev
+            results = _ok.to_dict("records")
+            done = set(_ok["query_name"].astype(str))
+            n_retry = len(_prev) - len(_ok)
+            print(f"RESUME: keeping {len(done)} successful queries; re-running {n_retry} failed + any missing")
         for query_file, query_name in iter_queries("blendsql"):
             if sembench_split == "cars" and query_name == "Q9":
                 continue  # ground truth for this query returns an empty subset

@@ -1,3 +1,0 @@
-Unnamed: 0,system_name,query_name,latency,gpu_usage,prediction,num_generation_calls,output_tokens,input_tokens,error,run,raw_metrics,quality
-0,cdfalse,Q1,0.5497424155473709,,"{""columns"":[""director""],""data"":[[""Michael Ritchie""]]}",1,4,402,,0,"{'precision': 1.0, 'recall': 1.0, 'f1_score': 1.0}",1.0
-1,cdfalse,Q2a,,,"{""columns"":[],""data"":[]}",0,0,0,FileNotFoundError: [Errno 2] No such file or directory: 'files/mmqa/data/sf_200/images/0b9c01571e423d9838eaf43263188f01.jpg',0,"{'precision': 0.0, 'recall': 0.0, 'f1_score': 0.0}",0.0

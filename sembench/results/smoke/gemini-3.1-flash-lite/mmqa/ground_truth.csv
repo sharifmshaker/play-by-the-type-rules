@@ -1,3 +1,0 @@
-,system_name,query_name,latency,prediction
-0,ground_truth,Q1,0.009394168853759766,"{""columns"":[""director""],""data"":[[""Michael Ritchie""]]}"
-1,ground_truth,Q2a,0.0074579715728759766,"{""columns"":[""id"",""filename""],""data"":[[0,""117d500aaa630023c4038b8268b309c0.png""],[5,""117d500aaa630023c4038b8268b309c0.png""],[6,""117d500aaa630023c4038b8268b309c0.png""],[9,""117d500aaa630023c4038b8268b309c0.png""],[10,""117d500aaa630023c4038b8268b309c0.png""]]}"

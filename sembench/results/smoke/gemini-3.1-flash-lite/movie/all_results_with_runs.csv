@@ -1,2 +1,0 @@
-Unnamed: 0,system_name,query_name,latency,gpu_usage,prediction,num_generation_calls,output_tokens,input_tokens,error,run,raw_metrics,quality
-0,cdfalse,Q1,0.5846131257712841,,"{""columns"":[""reviewId""],""data"":[[2687002],[2554090],[2677961],[2602222],[102771585]]}",15,28,3662,,0,"{'precision': 1.0, 'recall': 1.0, 'f1_score': 1.0}",1.0

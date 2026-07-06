@@ -19,10 +19,13 @@ paper's.
 | Path | Change |
 |------|--------|
 | `sembench/src/eval_scripts/model_factory.py` | **New.** Chooses the BlendSQL model backend (vLLM or Gemini) from a `BACKEND` env var. |
-| `sembench/src/eval_scripts/eval_blendsql.py` | **Edited.** Import `make_model`; `model=VLLM(...)` → `model=make_model()`. Backend defaults to `vllm`, so upstream Gemma runs are unaffected. |
-| `sembench/run_gemini.sh` | **New.** Drives the Gemini runs through the eval script without a vLLM server. |
+| `sembench/src/eval_scripts/eval_blendsql.py` | **Edited.** Backend switch (`model=make_model()`, defaults to vLLM); plus per-query try/except + incremental CSV checkpoint + `RESUME=1` so one failing query can't destroy a run. |
+| `sembench/run_gemini.sh` | **New.** Drives the Gemini runs through the eval script without a vLLM server (`--smoke` for cheap validation). |
 | `sembench/costs.py` | **New.** Converts the raw token/latency logs into USD (upstream logs neither). |
+| `sembench/glue.py` | **New.** Folds `all_results_with_runs.csv` into `decide.py`'s long format. |
 | `sembench/decide.py` | **New.** Applies our Flash-Lite → 3-Flash escalation rule to results. |
+| `sembench/src/aggregate_results.py` | **Edited.** Guard per-query metric computation so an empty/failed prediction scores 0 instead of aborting aggregation. |
+| `sembench/src/config.py` | **Edited.** `SKIP_QUERIES`/`ONLY_USE` are now env-overridable (comma-separated); empty = original behavior. Powers `run_gemini.sh --smoke`. |
 
 We do **not** fork `blendsql` — it stays a pinned pip dependency
 (`blendsql==0.1.26`). If the Option-C Gemini structured-output parity work needs

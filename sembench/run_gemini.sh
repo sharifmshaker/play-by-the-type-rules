@@ -8,6 +8,18 @@
 # step uses plain `python`).
 set -euo pipefail
 
+SMOKE=0
+for arg in "$@"; do
+  case "$arg" in
+    --smoke) SMOKE=1 ;;
+    -h|--help)
+      echo "usage: [MODEL=.. N_RUNS=.. CONSTRAINED=.. N_PARALLEL=.. OUTDIR=.. RESUME=1] bash run_gemini.sh [--smoke]"
+      echo "  --smoke : 1 run over movie+mmqa, queries Q1 (text) + Q2a (image) only — cheap validation"
+      exit 0 ;;
+    *) echo "unknown arg: $arg (try --help)" >&2; exit 2 ;;
+  esac
+done
+
 export PYTHONPATH="$(pwd):${PYTHONPATH:-}"   # eval + aggregate need repo root for `src.*`
 chmod -R u+x src/eval_scripts
 
@@ -20,6 +32,14 @@ OFFLINE_MODE="${OFFLINE_MODE:-0}"
 OUTDIR="${OUTDIR:-results/gemini/${MODEL}}"
 # Text+image scenarios only. Audio (cars, wildlife) is intentionally OUT OF SCOPE.
 SCENARIO_SCALE=("movie:2000" "mmqa:200" "ecomm:500")
+
+if [[ "$SMOKE" == "1" ]]; then
+  echo "### SMOKE MODE: 1 run · movie+mmqa · Q1 (text) + Q2a (image) only ###"
+  N_RUNS=1
+  SCENARIO_SCALE=("movie:2000" "mmqa:200")
+  export ONLY_USE="Q1,Q2a"      # movie->Q1; mmqa->Q1(text)+Q2a(image, the cheap image-path check)
+  OUTDIR="results/smoke/${MODEL}"
+fi
 
 : "${GEMINI_API_KEY:?set GEMINI_API_KEY (or GOOGLE_API_KEY)}"
 export HAS_GPU=false

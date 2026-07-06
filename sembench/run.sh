@@ -3,12 +3,15 @@ export PYTHONPATH="$(pwd):$PYTHONPATH"
 chmod -R u+x src/eval_scripts
 
 SMOKE=0
+TEXT_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --smoke) SMOKE=1 ;;
+    --text-only) TEXT_ONLY=1 ;;
     -h|--help)
-      echo "usage: bash run.sh [--smoke]"
-      echo "  --smoke : 1 run · gemma_e4b · movie+mmqa · Q1(text)+Q2a(image) · CD off — cheap GPU-side validation"
+      echo "usage: bash run.sh [--smoke] [--text-only]"
+      echo "  --smoke     : 1 run · gemma_e4b · movie+mmqa · Q1(text)+Q2a(image) · CD off — cheap GPU-side validation"
+      echo "  --text-only : skip image queries per scenario (image data not bundled with the DBs)"
       exit 0 ;;
     *) echo "unknown arg: $arg (try --help)" >&2; exit 2 ;;
   esac
@@ -99,6 +102,14 @@ for entry in "${SCENARIO_SCALE_ENTRIES[@]}"; do
 
   export DATASET_HUB_PATH="${sembench_split}/sf_${scale_factor}/${sembench_split}_database_${scale_factor}.duckdb"
   export QUERIES_DIR="src/queries/${sembench_split}"
+  # Image queries need SemBench image binaries not bundled with the DBs; --text-only skips them.
+  if [[ "$TEXT_ONLY" == "1" ]]; then
+    case "$sembench_split" in
+      mmqa)  export SKIP_QUERIES="Q2a,Q2b,Q7" ;;
+      ecomm) export SKIP_QUERIES="Q2,Q4,Q6,Q8,Q9,Q10,Q11,Q12,Q13,Q14" ;;
+      *)     export SKIP_QUERIES="" ;;
+    esac
+  fi
   RESULTS_DIR="./results/feature_ablations/${sembench_split}"
 
   for model_name in "${MODELS[@]}"; do

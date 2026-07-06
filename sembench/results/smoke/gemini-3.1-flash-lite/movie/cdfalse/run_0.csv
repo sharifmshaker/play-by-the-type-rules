@@ -1,0 +1,2 @@
+,system_name,query_name,latency,gpu_usage,prediction,num_generation_calls,output_tokens,input_tokens,error
+0,blendsql,Q1,0.5846131257712841,,"{""columns"":[""reviewId""],""data"":[[2687002],[2554090],[2677961],[2602222],[102771585]]}",15,28,3662,

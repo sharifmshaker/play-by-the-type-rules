@@ -9,12 +9,15 @@
 set -euo pipefail
 
 SMOKE=0
+TEXT_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --smoke) SMOKE=1 ;;
+    --text-only) TEXT_ONLY=1 ;;
     -h|--help)
-      echo "usage: [MODEL=.. N_RUNS=.. CONSTRAINED=.. N_PARALLEL=.. OUTDIR=.. RESUME=1] bash run_gemini.sh [--smoke]"
-      echo "  --smoke : 1 run over movie+mmqa, queries Q1 (text) + Q2a (image) only — cheap validation"
+      echo "usage: [MODEL=.. N_RUNS=.. CONSTRAINED=.. N_PARALLEL=.. OUTDIR=.. RESUME=1] bash run_gemini.sh [--smoke] [--text-only]"
+      echo "  --smoke     : 1 run over movie+mmqa, queries Q1 (text) + Q2a (image) only — cheap validation"
+      echo "  --text-only : skip image queries per scenario (image data not bundled with the DBs)"
       exit 0 ;;
     *) echo "unknown arg: $arg (try --help)" >&2; exit 2 ;;
   esac
@@ -50,6 +53,15 @@ for entry in "${SCENARIO_SCALE[@]}"; do
   IFS=':' read -r split scale <<< "$entry"
   export DATASET_HUB_PATH="${split}/sf_${scale}/${split}_database_${scale}.duckdb"
   export QUERIES_DIR="src/queries/${split}"       # iter_queries() reads this
+  # Image queries need SemBench image binaries that aren't bundled with the DBs.
+  # --text-only skips them per scenario (config.py reads SKIP_QUERIES).
+  if [[ "$TEXT_ONLY" == "1" ]]; then
+    case "$split" in
+      mmqa)  export SKIP_QUERIES="Q2a,Q2b,Q7" ;;
+      ecomm) export SKIP_QUERIES="Q2,Q4,Q6,Q8,Q9,Q10,Q11,Q12,Q13,Q14" ;;
+      *)     export SKIP_QUERIES="" ;;
+    esac
+  fi
   out_dir="${OUTDIR}/${split}/${CONFIG_LABEL}"
   mkdir -p "$out_dir"
   for run in $(seq 0 $((N_RUNS - 1))); do

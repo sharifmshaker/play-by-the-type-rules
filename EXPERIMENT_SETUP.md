@@ -1,13 +1,17 @@
 # Setup & run — Gemini vs. local Gemma on SemBench (fork workflow)
 
-**Scope:** text + image scenarios only — `movie`, `mmqa`, `ecomm`. Audio (`cars`,
-`wildlife`) is intentionally out of scope. See `CONSIDERATIONS.md` for the full
-risk register behind the choices below.
+**Scope:** `movie`, `mmqa`, `ecomm`. Audio (`cars`, `wildlife`) is out of scope.
+**Image queries are also not runnable** — the HF database repo ships only the
+`.duckdb` files, not the image binaries they reference (paths like
+`files/mmqa/data/sf_200/images/*.jpg`), so multimodal queries hit `FileNotFoundError`.
+Use **`--text-only`** on both runners to skip them; that leaves **22 text queries**
+(movie ×10, mmqa ×8, ecomm ×4) — also where the paper's open-weight advantage is
+strongest. See `CONSIDERATIONS.md` for the full risk register.
 
 ## 0. Prerequisites
 - **`uv`** — eval scripts run via a `uv run --script` shebang: `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 - **Gemma side:** a CUDA GPU (24GB 4090 or rented A100 is comfortable; E4B is small), plus **`vllm`** installed (`uv pip install vllm`; **not** in `requirements.txt`). Needs a working `nvidia-smi`.
-- **Gemini side:** `GEMINI_API_KEY`, network, no GPU. **Use a paid Tier 2+** — one query fans out into hundreds of LM calls, so Tier 1's 1,500 requests/day will be exhausted fast (and there's no Batch discount here — BlendSQL makes live streaming calls, so you pay sync rates).
+- **Gemini side:** `GEMINI_API_KEY`, network, no GPU. **Tier 1 is enough to start** — the text pass at `N_PARALLEL=16` completed clean (0 rate-limit errors); watch the `error` column and move to Tier 2 only if you see 429s. No Batch discount (BlendSQL makes live streaming calls → sync pricing). Set a project spend cap at aistudio.google.com/spend.
 - **Ambient python env** (for the aggregate step, which uses plain `python`): `uv pip install -r requirements.txt` (pandas/duckdb/scipy/huggingface_hub).
 
 ## 1. Fork, clone, install (once — already done for this project)
@@ -52,7 +56,7 @@ bash run.sh --smoke                                        # GPU box: gemma_e4b 
 ```
 No config to revert — `--smoke` sets everything via env and leaves your real config untouched.
 
-## 4. Phase 1 — the probe (text+image; a few hours; a few $)
+## 4. Phase 1 — the probe (text only; ~30–45 min/side; ~$16 Gemini)
 ```bash
 cd sembench
 # Gemma side (stock run.sh) — edit its config block:
@@ -60,13 +64,16 @@ cd sembench
 #   N_RUNS=3
 #   MODELS=("gemma_e4b")
 #   SYSTEMS=("blendsql:64:true:true:false" "blendsql:64:true:true:true")
-./run.sh
+bash run.sh --text-only
 # Gemini Flash-Lite side (laptop is fine):
-MODEL=gemini-3.1-flash-lite N_RUNS=3 CONSTRAINED=false bash run_gemini.sh
+MODEL=gemini-3.1-flash-lite N_RUNS=3 CONSTRAINED=false bash run_gemini.sh --text-only
 ```
-Runs are **resilient**: a failing query is logged (with an `error` column) and scored
-0 instead of crashing the run, and each query is checkpointed to CSV. If a run dies
-anyway (machine died, etc.), re-invoke with `RESUME=1` to skip completed queries.
+**Do `N_RUNS=1` first** and confirm the `error` column is empty (no 429s) before the
+3-run pass — latency is only trustworthy from an un-throttled run.
+Runs are **resilient**: a failing query is logged (`error` column) and scored 0 instead
+of crashing, and each query is checkpointed to CSV. If a run is interrupted or some
+queries hit a rate limit, re-invoke with `RESUME=1` — it re-runs the **failed** queries
+(not just missing ones) and keeps the successful ones.
 
 ## 5. Decide
 Both sides auto-aggregate to `all_results_with_runs.csv`. Fold the relevant configs
@@ -83,6 +90,20 @@ python decide.py --gemma gemma_e4b_nocd --flashlite flash_lite_nocd
 ```
 Verdict: **ESCALATE** (run 3 Flash), **run 3 Flash at least once** (close), or
 **may skip 3 Flash** (Flash-Lite consistently better).
+
+## Compile the report (anytime)
+`decide.py` answers the one pairwise question; `compile_report.py` rolls up **everything**
+into the final report. It auto-discovers every `all_results_with_runs.csv` in both trees:
+```bash
+python compile_report.py            # prints tables + writes results/report.csv
+```
+It prints a per-`model × CD-config × scenario` table (with an **`errors` column** that
+flags rate-limited / compromised configs), a **scenario × config quality pivot** (your
+Gemma-vs-Gemini head-to-head, which fills out as configs accumulate), and a per-config
+cost rollup. API cost comes from `costs.py` token pricing; local (Gemma) cost from
+GPU-hours × `--gpu-rate` (default $0.31/hr). Re-run it after each pass — it picks up
+whatever exists. **First copy the GPU box's `results/feature_ablations/` back here**
+(results are gitignored / local-only, and the Gemma runs happen on a different machine).
 
 ## 6. Phase 2 — escalate if directed
 ```bash
@@ -117,9 +138,11 @@ from costs import api_cost, gemma_cost
 api_cost("gemini-3.1-flash-lite", input_tokens, output_tokens)  # sync pricing (no batch here)
 gemma_cost(total_latency_seconds, gpu_hourly_rate=0.31)
 ```
-Rough Phase-1 (text+image, 3 runs): Gemma **~$1–3** of GPU time; Flash-Lite **~$10–30**
-sync. Escalating to 3 Flash and/or more runs scales up from there (sync rates, plus
-3 Flash's thinking tokens). Full 5-run/all-scenario on 3 Flash would be **~$300+**.
+**Measured** (text-only, Flash-Lite): **~$5.3 per run** — driven by ~21M input tokens
+(long review/product text × many rows), so a **3-run Gemini side ≈ ~$16**. 3 Flash is
+~2× the token price plus thinking tokens (≈ $32+ for 3 runs). Gemma side is GPU-time only
+(~$1–5). Adding image scenarios later would increase all of these. `compile_report.py`
+reports the real per-run cost from the logged tokens.
 
 ## Caveats
 - `run_gemini.sh` is reconciled against the real `run.sh`/`eval_blendsql.py`, but

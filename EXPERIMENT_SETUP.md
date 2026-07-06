@@ -35,21 +35,22 @@ Use **cascade ON, early-exit ON** (matches the paper and `run_gemini.sh`), varyi
 > Do **not** use `blendsql:64:false:false:false` — that also turns early-exit off, which makes Gemma far slower/costlier on LIMIT queries *and* breaks the apples-to-apples.
 
 ## 3. Smoke test FIRST (do this before any multi-hour/paid run)
-Prove the plumbing on a tiny subset — cheap, and it catches the failure modes that
-would otherwise waste GPU/API spend. Run the **Gemini side on your laptop first**
-(off the GPU clock); it exercises HF download, DB open, image handling, token
-accounting, and quality computation for free.
+Both runners have a `--smoke` flag: **1 run, movie+mmqa, only `Q1` (text) + `Q2a`
+(image)** — the cheapest queries that still exercise both modalities (it avoids the
+pricey mmqa `Q7`), writing to `results/smoke/`. Run the **Gemini side on your laptop
+first** (off the GPU clock) — it validates HF download, DB open, image handling,
+token accounting, and quality computation for pennies.
 ```bash
-# In sembench/src/config.py set:  ONLY_USE = {"Q1"}   (restricts to one query per scenario)
-# Temporarily trim run_gemini.sh SCENARIO_SCALE to ("movie:2000" "mmqa:200")   # 1 text, 1 image
-MODEL=gemini-3.1-flash-lite N_RUNS=1 CONSTRAINED=false bash run_gemini.sh
+MODEL=gemini-3.1-flash-lite bash run_gemini.sh --smoke    # laptop, no GPU
 ```
 **Check before scaling up:** the output CSV has **non-zero `input_tokens`/`output_tokens`**
-(else Gemini isn't returning usage and cost can't be computed from data), the `mmqa`
+(else Gemini isn't returning usage and cost can't be computed from data), the `Q2a`
 image query didn't error, and `all_results_with_runs.csv` has a non-null `quality`.
-Then repeat the same tiny subset on the GPU box for Gemma (`MODELS=("gemma_e4b")`,
-one SYSTEMS entry, `N_RUNS=1`) to confirm vLLM serves and the model loads.
-**Revert `ONLY_USE = {}` and the scenario list before Phase 1.**
+Then confirm the GPU side serves and loads the model:
+```bash
+bash run.sh --smoke                                        # GPU box: gemma_e4b via vLLM
+```
+No config to revert — `--smoke` sets everything via env and leaves your real config untouched.
 
 ## 4. Phase 1 — the probe (text+image; a few hours; a few $)
 ```bash

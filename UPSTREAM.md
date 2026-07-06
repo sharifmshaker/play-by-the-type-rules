@@ -25,7 +25,8 @@ paper's.
 | `sembench/glue.py` | **New.** Folds `all_results_with_runs.csv` into `decide.py`'s long format. |
 | `sembench/decide.py` | **New.** Applies our Flash-Lite → 3-Flash escalation rule to results. |
 | `sembench/src/aggregate_results.py` | **Edited.** Guard per-query metric computation so an empty/failed prediction scores 0 instead of aborting aggregation. |
-| `sembench/src/config.py` | **Edited.** `SKIP_QUERIES`/`ONLY_USE` are now env-overridable (comma-separated); empty = original behavior. Powers `run_gemini.sh --smoke`. |
+| `sembench/src/config.py` | **Edited.** `SKIP_QUERIES`/`ONLY_USE` are now env-overridable (comma-separated); empty = original behavior. Powers the `--smoke` flags. |
+| `sembench/run.sh` | **Edited.** Added a `--smoke` flag (1 run · gemma_e4b · movie+mmqa · Q1+Q2a · CD off) and skip the plot step under smoke; default behavior unchanged. |
 
 We do **not** fork `blendsql` — it stays a pinned pip dependency
 (`blendsql==0.1.26`). If the Option-C Gemini structured-output parity work needs

@@ -2,7 +2,7 @@
 #
 # /// script
 # requires-python = "==3.12"
-# dependencies = ["blendsql==0.1.26"]
+# dependencies = ["blendsql==0.1.26", "huggingface_hub"]
 # ///
 import json
 import os

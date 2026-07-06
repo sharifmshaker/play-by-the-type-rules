@@ -130,15 +130,20 @@ def main():
                 except ValueError:
                     query_id = int(query_name.replace("Q", "")[:-1])  # "3a" -> "3"
 
-                metric_dict = asdict(
-                    evaluator.evaluate_single_query(
-                        query_id,
-                        system_results=prediction,
-                        ground_truth=reference,
+                try:  # fork addition: an empty/failed prediction scores 0, never aborts aggregation
+                    metric_dict = asdict(
+                        evaluator.evaluate_single_query(
+                            query_id,
+                            system_results=prediction,
+                            ground_truth=reference,
+                        )
                     )
-                )
+                    quality = extract_quality_metric(metric_dict)
+                except Exception as e:
+                    metric_dict = {"error": f"{type(e).__name__}: {e}"[:300]}
+                    quality = 0.0
                 all_results_df.loc[mask, "raw_metrics"] = [metric_dict]
-                all_results_df.loc[mask, "quality"] = extract_quality_metric(metric_dict)
+                all_results_df.loc[mask, "quality"] = quality
                 print(f"  {system_name} (run {run_number}): {metric_dict}")
 
     out_path = output_dir / "all_results_with_runs.csv"

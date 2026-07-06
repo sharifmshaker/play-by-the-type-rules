@@ -67,21 +67,32 @@ if __name__ == "__main__":
         bsql._warmup()
 
         # Run queries
+        # Resilience (fork addition): per-query try/except + incremental writes +
+        # optional resume, so one failing query (API 429/500, multimodal reject,
+        # bad output) can't destroy an entire run's compute/spend. A failed query
+        # is recorded as an empty prediction (scores 0 downstream), matching how
+        # the paper treats failures. Set RESUME=1 to skip already-completed queries.
+        resume = os.getenv("RESUME", "0") == "1"
         results = []
+        done = set()
+        if resume and os.path.exists(output_path):
+            _prev = pd.read_csv(output_path)
+            results = _prev.to_dict("records")
+            done = set(_prev["query_name"].astype(str))
+            print(f"RESUME: skipping {len(done)} already-completed queries")
         for query_file, query_name in iter_queries("blendsql"):
-            if sembench_split == "cars":
-                if query_name == "Q9":
-                    continue # The ground truth for this query returns an empty subset
+            if sembench_split == "cars" and query_name == "Q9":
+                continue  # ground truth for this query returns an empty subset
+            if query_name in done:
+                continue
             query = open(query_file).read()
-            with (track_gpu() if has_gpu else nullcontext()) as gpu_data:
-                start = time.perf_counter()
-                smoothie = bsql.execute(query)
-                result = (
-                    smoothie.df()
-                )  # Count this, since conversion to pd from pl takes a small bit of latency
-                latency = time.perf_counter() - start
-            results.append(
-                {
+            try:
+                with (track_gpu() if has_gpu else nullcontext()) as gpu_data:
+                    start = time.perf_counter()
+                    smoothie = bsql.execute(query)
+                    result = smoothie.df()  # pl->pd conversion counts toward latency
+                    latency = time.perf_counter() - start
+                row = {
                     "system_name": "blendsql",
                     "query_name": query_name,
                     "latency": latency,
@@ -90,7 +101,22 @@ if __name__ == "__main__":
                     "num_generation_calls": smoothie.meta.num_generation_calls,
                     "output_tokens": smoothie.meta.completion_tokens,
                     "input_tokens": smoothie.meta.prompt_tokens,
+                    "error": None,
                 }
-            )
+            except Exception as e:  # one bad query must not nuke the whole run
+                print(f"QUERY {query_name} FAILED: {type(e).__name__}: {e}")
+                row = {
+                    "system_name": "blendsql",
+                    "query_name": query_name,
+                    "latency": None,
+                    "gpu_usage": None,
+                    "prediction": pd.DataFrame().to_json(orient="split", index=False),
+                    "num_generation_calls": 0,
+                    "output_tokens": 0,
+                    "input_tokens": 0,
+                    "error": f"{type(e).__name__}: {e}"[:500],
+                }
+            results.append(row)
+            pd.DataFrame(results).to_csv(output_path)  # incremental checkpoint
     Color.in_block = False
     pd.DataFrame(results).to_csv(output_path)

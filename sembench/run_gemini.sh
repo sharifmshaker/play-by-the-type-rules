@@ -18,7 +18,7 @@ N_PARALLEL="${N_PARALLEL:-16}"                # concurrent async requests; watch
 CONSTRAINED="${CONSTRAINED:-false}"           # false = fair vs Gemma cd=false (grammar is vLLM-only)
 OFFLINE_MODE="${OFFLINE_MODE:-0}"
 OUTDIR="${OUTDIR:-results/gemini/${MODEL}}"
-# Text+image scenarios for the cheap probe. Add "cars:19672" "wildlife:200" later.
+# Text+image scenarios only. Audio (cars, wildlife) is intentionally OUT OF SCOPE.
 SCENARIO_SCALE=("movie:2000" "mmqa:200" "ecomm:500")
 
 : "${GEMINI_API_KEY:?set GEMINI_API_KEY (or GOOGLE_API_KEY)}"
@@ -42,8 +42,9 @@ for entry in "${SCENARIO_SCALE[@]}"; do
     SEMBENCH_SPLIT="$split" \
     N_PARALLEL="$N_PARALLEL" \
     ENABLE_CONSTRAINED_DECODING="$CONSTRAINED" \
-    ENABLE_CASCADE_FILTER="false" \
+    ENABLE_CASCADE_FILTER="true" \
     ENABLE_EARLY_EXIT="true" \
+    RESUME="${RESUME:-0}" \
     OUTPUT_PATH="${out_dir}/run_${run}.csv" \
       ./src/eval_scripts/eval_blendsql.py       # uv-run shebang; do NOT prefix with python
   done

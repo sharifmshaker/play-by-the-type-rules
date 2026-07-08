@@ -2,6 +2,21 @@
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 chmod -R u+x src/eval_scripts
 
+SMOKE=0
+TEXT_ONLY=0
+for arg in "$@"; do
+  case "$arg" in
+    --smoke) SMOKE=1 ;;
+    --text-only) TEXT_ONLY=1 ;;
+    -h|--help)
+      echo "usage: bash run.sh [--smoke] [--text-only]"
+      echo "  --smoke     : 1 run · gemma_e4b · movie+mmqa · Q1(text)+Q2a(image) · CD off — cheap GPU-side validation"
+      echo "  --text-only : skip image queries per scenario (image data not bundled with the DBs)"
+      exit 0 ;;
+    *) echo "unknown arg: $arg (try --help)" >&2; exit 2 ;;
+  esac
+done
+
 #----------------------- CONFIG -----------------------#
 OFFLINE_MODE=0
 
@@ -34,6 +49,15 @@ SYSTEMS=(
 )
 MODELS=("gemma_e2b" "gemma_e4b")
 #------------------------------------------------------#
+
+if [[ "$SMOKE" == "1" ]]; then
+  echo "### SMOKE MODE (Gemma): 1 run · gemma_e4b · movie+mmqa · Q1+Q2a · CD off ###"
+  SCENARIO_SCALE_ENTRIES=("movie:2000" "mmqa:200")
+  N_RUNS=1
+  MODELS=("gemma_e4b")
+  SYSTEMS=("blendsql:64:true:true:false")   # cascade on, early-exit on, CD off (matches run_gemini.sh)
+  export ONLY_USE="Q1,Q2a"                   # movie->Q1; mmqa->Q1(text)+Q2a(image path on vLLM)
+fi
 
 source "$(dirname "$0")/model_config.sh"
 
@@ -78,6 +102,14 @@ for entry in "${SCENARIO_SCALE_ENTRIES[@]}"; do
 
   export DATASET_HUB_PATH="${sembench_split}/sf_${scale_factor}/${sembench_split}_database_${scale_factor}.duckdb"
   export QUERIES_DIR="src/queries/${sembench_split}"
+  # Image queries need SemBench image binaries not bundled with the DBs; --text-only skips them.
+  if [[ "$TEXT_ONLY" == "1" ]]; then
+    case "$sembench_split" in
+      mmqa)  export SKIP_QUERIES="Q2a,Q2b,Q7" ;;
+      ecomm) export SKIP_QUERIES="Q2,Q4,Q6,Q8,Q9,Q10,Q11,Q12,Q13,Q14" ;;
+      *)     export SKIP_QUERIES="" ;;
+    esac
+  fi
   RESULTS_DIR="./results/feature_ablations/${sembench_split}"
 
   for model_name in "${MODELS[@]}"; do
@@ -124,15 +156,17 @@ for entry in "${SCENARIO_SCALE_ENTRIES[@]}"; do
     SEMBENCH_SPLIT=${sembench_split} python ./src/aggregate_results.py "${RESULTS_DIR}/${model_name}"
   done
 
-  echo "Creating plot..."
-  if [ "$sembench_split" = "movie" ] || [ "$sembench_split" = "ecomm" ] || [ "$sembench_split" = "mmqa" ] || [ "$sembench_split" = "wildlife" ] || [ "$sembench_split" = "cars" ]; then
-    IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=1
-  else
-    IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=0
-  fi
+  if [[ "$SMOKE" != "1" ]]; then   # plotting needs a full run; skip it for the 2-query smoke
+    echo "Creating plot..."
+    if [ "$sembench_split" = "movie" ] || [ "$sembench_split" = "ecomm" ] || [ "$sembench_split" = "mmqa" ] || [ "$sembench_split" = "wildlife" ] || [ "$sembench_split" = "cars" ]; then
+      IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=1
+    else
+      IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=0
+    fi
 
-  RESULTS_DIR="$RESULTS_DIR" OFFLINE_MODE=$OFFLINE_MODE \
-    IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=$IS_COMPARABLE_TO_ORIGINAL_SEMBENCH \
-    SEMBENCH_SPLIT=${sembench_split} \
-    ./src/plot.py
+    RESULTS_DIR="$RESULTS_DIR" OFFLINE_MODE=$OFFLINE_MODE \
+      IS_COMPARABLE_TO_ORIGINAL_SEMBENCH=$IS_COMPARABLE_TO_ORIGINAL_SEMBENCH \
+      SEMBENCH_SPLIT=${sembench_split} \
+      ./src/plot.py
+  fi
 done

@@ -2,7 +2,7 @@
 #
 # /// script
 # requires-python = "==3.12"
-# dependencies = ["blendsql==0.1.26"]
+# dependencies = ["blendsql==0.1.26", "huggingface_hub"]
 # ///
 import json
 import os
@@ -20,6 +20,7 @@ from blendsql import config
 from src.config import DUCKDB_SEED
 from src.database_utils import iter_queries, fetch_from_hub
 from src.gpu_util_tracker import track_gpu
+from model_factory import make_model
 
 config.set_deterministic(True)
 
@@ -57,11 +58,7 @@ if __name__ == "__main__":
         config.set_async_limit(n_parallel)
         bsql = BlendSQL(
             DuckDB(con),
-            model=VLLM(
-                model_name_or_path=model_name_or_path,
-                base_url=base_url,
-                extra_body=extra_body,
-            ),
+            model=make_model(),
             verbose=False,
             enable_constrained_decoding=enable_constrained_decoding,
             enable_cascade_filter=enable_cascade_filter,
@@ -70,21 +67,37 @@ if __name__ == "__main__":
         bsql._warmup()
 
         # Run queries
+        # Resilience (fork addition): per-query try/except + incremental writes +
+        # optional resume, so one failing query (API 429/500, multimodal reject,
+        # bad output) can't destroy an entire run's compute/spend. A failed query
+        # is recorded as an empty prediction (scores 0 downstream), matching how
+        # the paper treats failures. Set RESUME=1 to skip already-completed queries.
+        resume = os.getenv("RESUME", "0") == "1"
         results = []
+        done = set()
+        if resume and os.path.exists(output_path):
+            _prev = pd.read_csv(output_path)
+            # Only SUCCESSFUL queries count as done — so RESUME re-runs anything
+            # that previously failed (e.g. a rate-limit 429), rather than keeping
+            # its artificial quality-0 result.
+            _ok = _prev[_prev["error"].isna()] if "error" in _prev.columns else _prev
+            results = _ok.to_dict("records")
+            done = set(_ok["query_name"].astype(str))
+            n_retry = len(_prev) - len(_ok)
+            print(f"RESUME: keeping {len(done)} successful queries; re-running {n_retry} failed + any missing")
         for query_file, query_name in iter_queries("blendsql"):
-            if sembench_split == "cars":
-                if query_name == "Q9":
-                    continue # The ground truth for this query returns an empty subset
+            if sembench_split == "cars" and query_name == "Q9":
+                continue  # ground truth for this query returns an empty subset
+            if query_name in done:
+                continue
             query = open(query_file).read()
-            with (track_gpu() if has_gpu else nullcontext()) as gpu_data:
-                start = time.perf_counter()
-                smoothie = bsql.execute(query)
-                result = (
-                    smoothie.df()
-                )  # Count this, since conversion to pd from pl takes a small bit of latency
-                latency = time.perf_counter() - start
-            results.append(
-                {
+            try:
+                with (track_gpu() if has_gpu else nullcontext()) as gpu_data:
+                    start = time.perf_counter()
+                    smoothie = bsql.execute(query)
+                    result = smoothie.df()  # pl->pd conversion counts toward latency
+                    latency = time.perf_counter() - start
+                row = {
                     "system_name": "blendsql",
                     "query_name": query_name,
                     "latency": latency,
@@ -93,7 +106,22 @@ if __name__ == "__main__":
                     "num_generation_calls": smoothie.meta.num_generation_calls,
                     "output_tokens": smoothie.meta.completion_tokens,
                     "input_tokens": smoothie.meta.prompt_tokens,
+                    "error": None,
                 }
-            )
+            except Exception as e:  # one bad query must not nuke the whole run
+                print(f"QUERY {query_name} FAILED: {type(e).__name__}: {e}")
+                row = {
+                    "system_name": "blendsql",
+                    "query_name": query_name,
+                    "latency": None,
+                    "gpu_usage": None,
+                    "prediction": pd.DataFrame().to_json(orient="split", index=False),
+                    "num_generation_calls": 0,
+                    "output_tokens": 0,
+                    "input_tokens": 0,
+                    "error": f"{type(e).__name__}: {e}"[:500],
+                }
+            results.append(row)
+            pd.DataFrame(results).to_csv(output_path)  # incremental checkpoint
     Color.in_block = False
     pd.DataFrame(results).to_csv(output_path)

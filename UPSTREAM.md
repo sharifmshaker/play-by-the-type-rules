@@ -29,8 +29,9 @@ paper's.
 | `sembench/run.sh` | **Edited.** Added a `--smoke` flag (1 run · gemma_e4b · movie+mmqa · Q1+Q2a · CD off) and skip the plot step under smoke; default behavior unchanged. |
 
 We do **not** fork `blendsql` — it stays a pinned pip dependency
-(`blendsql==0.1.26`). If the Option-C Gemini structured-output parity work needs
-changes inside the library, fork `blendsql` separately at that point.
+(`blendsql==0.1.26`). If the Gemini structured-output parity work
+([FINDINGS.md → Limitations](./FINDINGS.md)) needs changes inside the library,
+fork `blendsql` separately at that point.
 
 ## Attribution
 Per Apache-2.0, the upstream `LICENSE` and `NOTICE` (if any) are retained. Cite

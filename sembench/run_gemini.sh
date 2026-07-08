@@ -85,4 +85,4 @@ for entry in "${SCENARIO_SCALE[@]}"; do
 done
 
 echo "Done. Per-split quality at: ${OUTDIR}/<split>/all_results_with_runs.csv"
-echo "Fold into decide.py's input with glue.py (see SETUP.md)."
+echo "Fold into decide.py's input with glue.py (see EXPERIMENT_SETUP.md)."

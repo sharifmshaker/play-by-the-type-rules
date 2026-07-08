@@ -48,7 +48,8 @@ def make_model():
         # ENABLE_CONSTRAINED_DECODING=false so the Gemma side can be compared
         # like-for-like (also set to false). To give Gemini its own structured
         # output instead, subclass Gemini and override _format_inputs to map
-        # item.grammar -> extra_body["response_format"] (see README, Option C).
+        # item.grammar -> extra_body["response_format"]
+        # (see FINDINGS.md -> "Limitations & further study": model-fair CD test).
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         return Gemini(name, api_key=api_key)
 

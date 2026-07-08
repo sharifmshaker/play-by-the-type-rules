@@ -70,14 +70,17 @@ are attributable to the model rather than the harness.
 | movie | 2.19 | **0.02** | 59.0 | **11.5** |
 | **Total / mean** | 5.32 | **0.05** | ~45 | **~16** |
 
-## The decision
+## Why this Gemini tier — the cheapest was already enough
 
-The pre-registered rule: escalate to the mainstream closed tier (Gemini 3 Flash)
-only if the cheap tier is *close to or worse than* Gemma. It isn't —
-**Flash-Lite beats Gemma on 3/3 runs**, mean gap `−0.052`, in every scenario. A
-stronger closed model would only widen the quality lead, so **escalation was
-skipped**. The open-vs-closed call here is about cost / latency / reproducibility,
-not quality.
+This comparison deliberately uses Gemini's **cheapest** current tier, 3.1
+Flash-Lite, to keep API spend down. The intent was to move up to a stronger,
+pricier tier (Gemini 3 Flash) only if the cheap one struggled against Gemma. It
+didn't — **Flash-Lite beat Gemma on every scenario, on all three runs** (mean gap
+`−0.052`). Since even the floor of the closed lineup already out-scored the local
+model on quality, a better — and more expensive — closed model would only *widen*
+that lead, not change the finding, so we never ran one. The closed side's quality
+edge here is a floor, not a ceiling; the open-vs-closed call comes down to cost,
+latency, and reproducibility, not quality.
 
 ## Constrained decoding — the reframing
 

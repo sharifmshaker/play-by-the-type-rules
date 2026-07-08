@@ -61,6 +61,10 @@ are attributable to the model rather than the harness.
 | movie | **0.766** | 0.717 | 0.725 |
 | **Overall** | **0.875** | 0.817 | 0.821 |
 
+![Quality by scenario — Gemini Flash-Lite vs Gemma CD-off vs Gemma CD-on](docs/img/quality.png)
+
+*Gemini leads every scenario by a modest, consistent margin; the two Gemma bars (CD-off / CD-on) nearly overlap.*
+
 *CD = **constrained decoding** — BlendSQL's grammar-level output constraint,
 available only on the local (vLLM) side. The two Gemma columns barely differ; why
 is unpacked in [Constrained decoding — the reframing](#constrained-decoding--the-reframing) below.*
@@ -73,6 +77,14 @@ is unpacked in [Constrained decoding — the reframing](#constrained-decoding--t
 | mmqa | 0.09 | **0.001** | 4.2 | **0.6** |
 | movie | 2.19 | **0.02** | 59.0 | **11.5** |
 | **Total / mean** | 5.32 | **0.05** | ~45 | **~16** |
+
+![Cost per run, log scale — Gemini vs Gemma](docs/img/cost.png)
+
+*Cost per run (log scale): Gemini's token bill vs Gemma's GPU time — ~100–230× cheaper.*
+
+![Latency per query by scenario, log scale — Gemini vs Gemma](docs/img/latency.png)
+
+*Latency per query by scenario (log scale): Gemma is faster in all three (2–7×).*
 
 ## Why this Gemini tier — the cheapest was already enough
 
@@ -97,6 +109,10 @@ CD's overall effect on Gemma was **+0.003 — within run-to-run noise.** It reac
 near-parity on the two format-sensitive queries (movie Q10 ranking: 0.72 vs 0.73;
 ecomm Q5 clustering: 0.956 vs 0.964) and slightly hurt several aggregation queries,
 roughly cancelling out.
+
+![Per-query effect of constrained decoding on Gemma (CD-on minus CD-off)](docs/img/cd.png)
+
+*Turning CD on helps a few queries (ranking, clustering) and hurts a few (aggregation), netting +0.003 — within run-to-run noise.*
 
 Why so small — and why it's a **scope effect, not a null result**: CD rescues a
 small model only where the output format is rigid *and* the model catastrophically

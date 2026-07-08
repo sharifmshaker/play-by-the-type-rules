@@ -61,6 +61,10 @@ are attributable to the model rather than the harness.
 | movie | **0.766** | 0.717 | 0.725 |
 | **Overall** | **0.875** | 0.817 | 0.821 |
 
+*CD = **constrained decoding** — BlendSQL's grammar-level output constraint,
+available only on the local (vLLM) side. The two Gemma columns barely differ; why
+is unpacked in [Constrained decoding — the reframing](#constrained-decoding--the-reframing) below.*
+
 **Cost & latency, per scenario** — the local model wins both, decisively.
 
 | Scenario | Gemini $ | Gemma $ | Gemini s/q | Gemma s/q |

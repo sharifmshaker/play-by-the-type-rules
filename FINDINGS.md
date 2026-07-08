@@ -134,20 +134,31 @@ changes, against the newer **3.1 Flash-Lite** tier.
 ## Limitations & further study
 
 The text-only scope is honest but narrow, and it happens to exclude the query types
-where the paper's central claim lives. Three follow-ups would close the gap:
+where the paper's central claim lives. Several follow-ups would sharpen the picture:
 
-1. **Run the format-heavy queries.** ecomm's classification/JSON and cars' 24-way
-   classification — the queries that most punish a no-CD model — sit in the excluded
-   image/audio scenarios. Testing them is the real test of whether Gemma's CD edge
-   can overturn the quality gap. Requires sourcing the SemBench image binaries
-   (Gemma's audio is a known weak spot).
-2. **Make the CD comparison model-fair.** Gemini isn't truly format-blind — its API
-   supports enum / JSON `responseSchema`; the harness simply doesn't use it. A
+1. **Run the format-heavy queries.** ecomm's classification and JSON queries, and
+   cars' 24-way classification (the queries that most punish a no-CD model), sit in
+   the excluded image/audio scenarios. Testing them is the real test of whether
+   Gemma's CD edge can overturn the quality gap. It requires sourcing the SemBench
+   image binaries (Gemma's audio is a known weak spot).
+2. **Make the CD comparison model-fair.** Gemini isn't truly format-blind: its API
+   supports enum / JSON `responseSchema`, and the harness simply doesn't use it. A
    rigorous format-heavy test would grant Gemini its own structured output so any
    Gemma advantage isn't just a plumbing artifact.
-3. **Audio & a larger open model.** Gemma E4B is ~4B effective parameters; the ~5%
-   gap may narrow with a larger open model, and audio (where local models are
-   weakest) is untested.
+3. **Scale up the open model, and its hardware.** The model was kept fixed at Gemma
+   E4B to stay consistent with the original research, but E4B is the small,
+   efficiency-oriented end of the Gemma family. The more valuable study sweeps larger
+   open models (the 12B and 27B-class Gemma models, and comparable open releases) on
+   correspondingly larger GPUs, and traces where quality first converges with, and
+   eventually passes, the Gemini tiers, and at what price. The cheapest first step is
+   Gemma 12B on the same 24 GB card at 4-bit (a config change and a re-run, marginal
+   added cost); 27B needs a larger GPU (A100 40 GB or L40S 48 GB), a real step up in
+   hourly rate. The expectation is that comparable quality is still reachable well
+   below the API's cost today, but that this is a moving target: as newer and stronger
+   closed models ship, the size of the open model needed to match them on quality, and
+   therefore its cost, will keep climbing. Mapping that cost-versus-quality frontier,
+   rather than a single point on it, is the interesting open question. The audio
+   scenarios, where local models are weakest, belong in the same sweep.
 
 ## Reproduce
 
